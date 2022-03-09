@@ -3,35 +3,16 @@ use std::vec;
 use serde::{Deserialize, Serialize};
 use serde_json::Result;
 mod features;
-#[derive(Serialize, Deserialize)]
-struct Organisation{
-    id: u32,
-    name: String,
-    feature_analytics: bool,
-    stop_serving_flags: bool,
-    persist_trait_data: bool
-}
+mod projects;
+mod organisations;
 
-#[derive(Serialize, Deserialize)]
-struct Segment{
-    id: u32,
-    name: String, //Add rest of it
-}
 
-#[derive(Serialize, Deserialize)]
-struct Project {
-    id: u32,
-    name: String,
-    organisation: Organisation,
-    hide_disabled_flags: bool,
-    segments: Vec<Segment>
-}
 
 #[derive(Serialize, Deserialize)]
 struct Environment{
     id: u32,
     api_key: String,
-    project: Project,
+    project: projects::Project,
     feature_states: Vec<features::FeatureState>
 
 }
