@@ -1,11 +1,7 @@
 use serde::{Deserialize, Serialize};
 use super::organisations;
+use super:: segments;
 
-#[derive(Serialize, Deserialize)]
-pub struct Segment{
-    pub id: u32,
-    pub name: String, //Add rest of it
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct Project {
@@ -13,5 +9,5 @@ pub struct Project {
     pub name: String,
     pub organisation: organisations::Organisation,
     pub hide_disabled_flags: bool,
-    pub segments: Vec<Segment>
+    pub segments: Vec<segments::Segment>
 }

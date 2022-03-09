@@ -1,12 +1,8 @@
-use std::vec;
-
-use serde::{Deserialize, Serialize};
-use serde_json::Result;
 mod features;
 mod projects;
 mod organisations;
 mod environments;
-
+mod segments;
 
 
 fn main(){
