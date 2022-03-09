@@ -10,3 +10,14 @@ pub struct Environment{
     pub feature_states: Vec<features::FeatureState>
 
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct EnvironmentAPIKey{
+    pub id: u32,
+    pub key: String,
+    pub created_at: String, // TODO datetime
+    pub name: String,
+    pub client_api_key: String,
+    pub expires_at: Option<String>, // TODO: datetime
+    pub active: Option<bool> // TODO: make default true
+}
