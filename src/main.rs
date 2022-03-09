@@ -5,17 +5,10 @@ use serde_json::Result;
 mod features;
 mod projects;
 mod organisations;
+mod environments;
 
 
 
-#[derive(Serialize, Deserialize)]
-struct Environment{
-    id: u32,
-    api_key: String,
-    project: projects::Project,
-    feature_states: Vec<features::FeatureState>
-
-}
 fn main(){
     let feature_json = r#"
         {
@@ -87,7 +80,6 @@ fn main(){
   }
  ]
 }"#;
-    let env: Environment = serde_json::from_str(feature_json).unwrap();
+    let env: environments::Environment = serde_json::from_str(feature_json).unwrap();
     println!(" Project name{}",env.project.name );
-     
 }
