@@ -3,7 +3,8 @@ use std::u32;
 use serde::{Deserialize, Serialize};
 
 
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Feature{
     id: u32,
     name:String,
@@ -11,14 +12,16 @@ pub struct Feature{
 }
 
 
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MultivariateFeatureOption{
     pub value: String, // typing Any
     pub id: u32 // default None
 }
 
 
-#[derive(Serialize, Deserialize)]
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MultivariateFeatureStateValue{
     pub multivariate_feature_option: MultivariateFeatureOption,
     pub percentage_allocation: f32,
@@ -28,7 +31,7 @@ pub struct MultivariateFeatureStateValue{
 }
 
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct FeatureState{
     pub feature: Feature,
     pub enabled: bool,
