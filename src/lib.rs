@@ -1,13 +1,7 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Result;
-
-#[derive(Serialize, Deserialize)]
-struct FeatureModel{
-    id: u32,
-    name:String,
-    _type: String,
-
-
-}
-
-
+mod engine;
+mod environments;
+mod features;
+mod identities;
+mod organisations;
+mod projects;
+mod segments;

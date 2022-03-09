@@ -1,11 +1,12 @@
-mod features;
-mod projects;
-mod organisations;
-mod environments;
-mod segments;
 mod engine;
+mod environments;
+mod features;
 mod identities;
-fn main(){
+mod organisations;
+mod projects;
+mod segments;
+
+fn main() {
     let feature_json = r#"
         {
  "api_key": "B62qaMZNwfiqT76p38ggrQ",
@@ -77,5 +78,5 @@ fn main(){
  ]
 }"#;
     let env: environments::Environment = serde_json::from_str(feature_json).unwrap();
-    println!(" Project name{}",env.project.name );
+    println!(" Project name{}", env.project.name);
 }
