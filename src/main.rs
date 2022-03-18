@@ -5,7 +5,7 @@ mod identities;
 mod organisations;
 mod projects;
 mod segments;
-
+mod utils;
 fn main() {
     let feature_json = r#"
         {
