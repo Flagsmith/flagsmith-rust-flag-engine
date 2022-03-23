@@ -5,6 +5,14 @@ use super::identities;
 pub fn get_environment_feature_states(
     environment: environments::Environment,
 ) -> Vec<features::FeatureState> {
+    if environment.project.hide_disabled_flags {
+        return environment
+            .feature_states
+            .iter()
+            .filter(|fs| fs.enabled)
+            .map(|fs| fs.clone())
+            .collect();
+    }
     return environment.feature_states;
 }
 
@@ -12,7 +20,14 @@ pub fn get_environment_feature_state(
     environment: environments::Environment,
     feature_name: String,
 ) -> features::FeatureState {
-    return environment.feature_states[0].clone();
+    // TODO handle error here
+    return environment
+        .feature_states
+        .iter()
+        .filter(|fs| fs.feature.name == feature_name)
+        .next()
+        .unwrap()
+        .clone();
 }
 
 pub fn get_identity_feature_states(
