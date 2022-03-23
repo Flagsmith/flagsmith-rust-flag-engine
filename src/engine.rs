@@ -18,7 +18,7 @@ pub fn get_environment_feature_states(
 
 pub fn get_environment_feature_state(
     environment: environments::Environment,
-    feature_name: String,
+    feature_name: &str,
 ) -> features::FeatureState {
     // TODO handle error here
     return environment
@@ -44,4 +44,77 @@ pub fn get_identity_feature_state(
     override_traits: Vec<identities::Trait>,
 ) -> features::FeatureState {
     return environment.feature_states[0].clone();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::environments::Environment;
+    use crate::features;
+    use crate::projects::Project;
+
+    static environment_json: &str = r#"
+        {
+ "api_key": "test_key",
+ "project": {
+  "name": "Test project",
+  "organisation": {
+   "feature_analytics": false,
+   "name": "Test Org",
+   "id": 1,
+   "persist_trait_data": true,
+   "stop_serving_flags": false
+  },
+  "id": 1,
+  "hide_disabled_flags": true,
+  "segments": []
+ },
+ "segment_overrides": [],
+ "id": 1,
+ "feature_states": [
+  {
+   "multivariate_feature_state_values": [],
+   "feature_state_value": null,
+   "django_id": 1,
+   "feature": {
+    "name": "feature1",
+    "type": null,
+    "id": 1
+   },
+   "segment_id": null,
+   "enabled": false
+  },
+  {
+   "multivariate_feature_state_values": [],
+   "feature_state_value": null,
+   "django_id": 2,
+   "feature": {
+    "name": "feature_2",
+    "type": null,
+    "id": 2
+   },
+   "segment_id": null,
+   "enabled": true
+  }
+ ]
+}"#;
+
+    #[test]
+    fn get_environment_feature_states_only_return_enabled_fs_if_hide_disabled_flags_is_true() {
+            let environment: environments::Environment =
+            serde_json::from_str(environment_json).unwrap();
+
+        let environment_feature_states = get_environment_feature_states(environment);
+        assert_eq!(environment_feature_states.len(), 1);
+        assert_eq!(environment_feature_states[0].django_id.unwrap(), 2);
+    }
+
+    #[test]
+    fn get_environment_feature_state_returns_correct_feature_state(){
+        let environment: environments::Environment =
+            serde_json::from_str(environment_json).unwrap();
+        let feature_name= "feature_2";
+        let feature_state = get_environment_feature_state(environment, feature_name);
+        assert_eq!(feature_state.feature.name,feature_name )
+    }
 }
