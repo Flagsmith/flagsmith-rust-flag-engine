@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 
 #[derive(Serialize, Deserialize)]
 pub struct Trait{
-    trait_key:  String,
-    trait_value: String //TODO: typing.Any
+    pub trait_key:  String,
+    pub trait_value: String //TODO: typing.Any
 }
 
 #[derive(Serialize, Deserialize)]
