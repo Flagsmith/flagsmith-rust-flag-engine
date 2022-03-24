@@ -1,7 +1,10 @@
+use crate::features::Feature;
+use crate::features::FeatureState;
+use super::segments::evaluator;
 use super::environments;
 use super::features;
 use super::identities;
-
+use std::collections::HashMap;
 pub fn get_environment_feature_states(
     environment: environments::Environment,
 ) -> Vec<features::FeatureState> {
@@ -31,19 +34,54 @@ pub fn get_environment_feature_state(
 }
 
 pub fn get_identity_feature_states(
-    environment: environments::Environment,
-    identity: identities::Identity,
-    override_traits: Vec<identities::Trait>,
+    environment: &environments::Environment,
+    identity: &identities::Identity,
+    override_traits: Option<&Vec<identities::Trait>>,
 ) -> Vec<features::FeatureState> {
-    return environment.feature_states;
+    let feature_states = get_identity_feature_states_map(environment, identity, override_traits).into_values();
+    if environment.project.hide_disabled_flags{
+        return feature_states.filter(|fs| fs.enabled).collect()
+    }
+    return feature_states.collect()
 }
+
 pub fn get_identity_feature_state(
-    environment: environments::Environment,
-    identity: identities::Identity,
-    feature_name: String,
-    override_traits: Vec<identities::Trait>,
+    environment: &environments::Environment,
+    identity: &identities::Identity,
+    feature_name: &str,
+    override_traits: Option<&Vec<identities::Trait>>,
 ) -> features::FeatureState {
-    return environment.feature_states[0].clone();
+
+    let feature_states = get_identity_feature_states_map(environment, identity, override_traits).into_values();
+    feature_states.filter(|fs| fs.feature.name == feature_name).next().unwrap()
+
+
+}
+
+fn get_identity_feature_states_map(
+    environment: &environments::Environment,
+    identity: &identities::Identity,
+    override_traits: Option<&Vec<identities::Trait>>,
+) -> HashMap<Feature, FeatureState>{
+    let mut feature_states: HashMap<Feature, FeatureState>  = HashMap::new();
+
+    // Get feature states from the environment
+    for fs in environment.feature_states.clone(){
+        feature_states.insert(fs.feature.clone(), fs);
+    }
+
+    // Override with any feature states defined by matching segments
+    let identity_segments = evaluator::get_identity_segments(environment, identity, override_traits);
+    for matching_segments in identity_segments{
+        for feature_state in matching_segments.feature_states {
+            feature_states.insert(feature_state.feature.clone(), feature_state);
+        }
+    }
+    // Override with any feature states defined directly the identity
+    for feature_state in identity.identity_features.clone(){
+        feature_states.insert(feature_state.feature.clone(), feature_state);
+    }
+    return feature_states
 }
 
 #[cfg(test)]

@@ -3,8 +3,8 @@ use super::utils;
 use super::utils::hashing;
 use serde::{Deserialize, Serialize};
 
-
-
+#[derive(Eq, PartialEq)]
+#[derive(Hash)]
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Feature{
     pub id: u32,
