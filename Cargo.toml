@@ -13,3 +13,4 @@ md-5="0.10.1"
 num-bigint = "0.4"
 num-traits = "0.2.14"
 uuid = { version = "0.8", features = ["serde", "v4"] }
+regex = "1"
