@@ -1,23 +1,23 @@
 // Segment Rules
-const ALL_RULE: &str = "ALL";
-const ANY_RULE: &str = "ANY";
-const NONE_RULE: &str = "NONE";
+pub const ALL_RULE: &str = "ALL";
+pub const ANY_RULE: &str = "ANY";
+pub const NONE_RULE: &str = "NONE";
 
-const RULE_TYPES: Vec<&str> = [ALL_RULE, ANY_RULE, NONE_RULE];
+const RULE_TYPES :[&str; 3] = [ALL_RULE, ANY_RULE, NONE_RULE];
 
 // Segment Condition Operators
-const EQUAL: &str = "EQUAL";
-const GREATER_THAN: &str = "GREATER_THAN";
-const LESS_THAN: &str = "LESS_THAN";
-const LESS_THAN_INCLUSIVE: &str = "LESS_THAN_INCLUSIVE";
-const CONTAINS: &str = "CONTAINS";
-const GREATER_THAN_INCLUSIVE: &str = "GREATER_THAN_INCLUSIVE";
-const NOT_CONTAINS: &str = "NOT_CONTAINS";
-const NOT_EQUAL: &str = "NOT_EQUAL";
-const REGEX: &str = "REGEX";
-const PERCENTAGE_SPLIT: &str = "PERCENTAGE_SPLIT";
+pub const EQUAL: &str = "EQUAL";
+pub const GREATER_THAN: &str = "GREATER_THAN";
+pub const LESS_THAN: &str = "LESS_THAN";
+pub const LESS_THAN_INCLUSIVE: &str = "LESS_THAN_INCLUSIVE";
+pub const CONTAINS: &str = "CONTAINS";
+pub const GREATER_THAN_INCLUSIVE: &str = "GREATER_THAN_INCLUSIVE";
+pub const NOT_CONTAINS: &str = "NOT_CONTAINS";
+pub const NOT_EQUAL: &str = "NOT_EQUAL";
+pub const REGEX: &str = "REGEX";
+pub const PERCENTAGE_SPLIT: &str = "PERCENTAGE_SPLIT";
 
-const CONDITION_OPERATORS: Vec<&str> = [
+const CONDITION_OPERATORS: [&str; 10] = [
     EQUAL,
     GREATER_THAN,
     LESS_THAN,
