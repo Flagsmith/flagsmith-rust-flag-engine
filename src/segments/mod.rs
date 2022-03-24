@@ -13,7 +13,7 @@ pub struct SegmentCondition{
 #[derive(Serialize, Deserialize)]
 pub struct SegmentRule{
     pub r#type: String,
-    pub rules: String,  // TODO: recursive
+    pub rules: Box<SegmentRule>,
     pub conditions: Vec<SegmentCondition>
 }
 
