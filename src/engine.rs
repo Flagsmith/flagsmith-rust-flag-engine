@@ -115,14 +115,13 @@ mod tests {
  "feature_states": [
   {
    "multivariate_feature_state_values": [],
-   "feature_state_value": null,
+   "feature_state_value": true,
    "django_id": 1,
    "feature": {
     "name": "feature1",
     "type": null,
     "id": 1
    },
-   "segment_id": null,
    "enabled": false
   },
   {
@@ -134,7 +133,6 @@ mod tests {
     "type": null,
     "id": 2
    },
-   "segment_id": null,
    "enabled": true
   }
  ]

@@ -1,11 +1,7 @@
 use super::utils;
 use super::utils::hashing;
-use serde::de::{self, Unexpected};
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::{ptr::hash, string, u32};
-
-use std::fmt;
-use std::str::FromStr;
+use serde::{Deserialize, Serialize};
+mod featurestate_value;
 
 #[derive(Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
 pub struct Feature {
@@ -39,86 +35,8 @@ pub struct FeatureState {
     #[serde(default = "utils::get_uuid")]
     pub featurestate_uuid: String, // Make this uuid by default
     pub multivariate_feature_state_values: Vec<MultivariateFeatureStateValue>,
-    #[serde(alias = "feature_state_value")]
-    value: FeatureStateValue, // TODO: typing. any
-}
-
-#[derive(Clone, Debug)]
-enum FeatureStateValueType {
-    String,
-    Bool,
-    Integer,
-    None,
-}
-
-#[derive(Clone, Debug)]
-struct FeatureStateValue {
-    value_type: FeatureStateValueType,
-    value: String,
-}
-
-impl Serialize for FeatureStateValue {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&self.value)
-    }
-}
-
-struct FeatureStateValueVisitor;
-impl<'de> de::Visitor<'de> for FeatureStateValueVisitor {
-    type Value = FeatureStateValue;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("an integer, a string, None or boolean")
-    }
-
-    fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Ok(FeatureStateValue {
-            value: v.to_string(),
-            value_type: FeatureStateValueType::Integer,
-        })
-    }
-
-    fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Ok(FeatureStateValue {
-            value: v.to_string(),
-            value_type: FeatureStateValueType::Integer,
-        })
-    }
-    fn visit_none<E>(self) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Ok(FeatureStateValue {
-            value: "".to_string(),
-            value_type: FeatureStateValueType::None,
-        })
-    }
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        Ok(FeatureStateValue {
-            value: v.to_string(),
-            value_type: FeatureStateValueType::String,
-        })
-    }
-}
-impl<'de> Deserialize<'de> for FeatureStateValue {
-    fn deserialize<D>(deserializer: D) -> Result<FeatureStateValue, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(FeatureStateValueVisitor)
-    }
+    #[serde(rename = "feature_state_value")]
+    value: featurestate_value::FeatureStateValue,
 }
 
 #[cfg(test)]
@@ -145,22 +63,23 @@ mod tests {
     }
     #[test]
     fn serialize_and_deserialize_feature_state() {
-        let feature_state_json = r#"{
-            "multivariate_feature_state_values": [],
-            "feature_state_value": 1,
-            "featurestate_uuid":"a6ff815f-63ed-4e72-99dc-9124c442ce4d",
-            "django_id": 1,
-            "feature": {
-                "name": "feature1",
-                "type": null,
-                "id": 1
-            },
-            "segment_id": null,
-            "enabled": false
-        }"#;
-
-        let feature_state: FeatureState = serde_json::from_str(feature_state_json).unwrap();
-        let given_json = serde_json::to_string(&feature_state).unwrap();
+        let feature_state_json = serde_json::json!(
+            {
+                "multivariate_feature_state_values": [],
+                "feature_state_value": 1,
+                "featurestate_uuid":"a6ff815f-63ed-4e72-99dc-9124c442ce4d",
+                "django_id": 1,
+                "feature": {
+                    "name": "feature1",
+                    "type": null,
+                    "id": 1
+                },
+                "enabled": false
+            }
+        );
+        let feature_state: FeatureState =
+            serde_json::from_value(feature_state_json.clone()).unwrap();
+        let given_json = serde_json::to_value(&feature_state).unwrap();
         assert_eq!(given_json, feature_state_json)
     }
 }
