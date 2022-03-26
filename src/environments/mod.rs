@@ -55,7 +55,6 @@ mod tests {
         assert!(api_key.is_valid())
     }
 
-
     #[test]
     fn api_key_is_valid_returns_false_if_active_is_false() {
         let api_key_json = r#"{

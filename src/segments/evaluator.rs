@@ -8,8 +8,6 @@ use crate::identities;
 use crate::utils::hashing;
 use crate::utils::hashing::get_hashed_percentage_for_object_ids;
 
-
-
 pub fn get_identity_segments(
     environment: &environments::Environment,
     identity: &identities::Identity,
@@ -20,7 +18,8 @@ pub fn get_identity_segments(
         .segments
         .clone()
         .into_iter()
-        .filter(|segment| evaluate_identity_in_segment(&identity, &segment, override_traits)).collect()
+        .filter(|segment| evaluate_identity_in_segment(&identity, &segment, override_traits))
+        .collect()
 }
 
 pub fn evaluate_identity_in_segment(

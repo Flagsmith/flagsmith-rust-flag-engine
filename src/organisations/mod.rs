@@ -1,17 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-pub struct Organisation{
+pub struct Organisation {
     pub id: u32,
     pub name: String,
     pub feature_analytics: bool,
     pub stop_serving_flags: bool,
-    pub persist_trait_data: bool
+    pub persist_trait_data: bool,
 }
 
-impl Organisation{
+impl Organisation {
     pub fn unique_slug(&self) -> String {
-        return self.id.to_string() + "_" + &self.name
+        return self.id.to_string() + "_" + &self.name;
     }
 }
 
@@ -20,7 +20,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn unqiue_slug_is_correct(){
+    fn unqiue_slug_is_correct() {
         let expected_slug = "1_test_org";
         let organisation_json = r#"{
             "id": 1,

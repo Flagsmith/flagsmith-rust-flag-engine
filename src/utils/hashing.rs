@@ -23,7 +23,8 @@ mod tests {
     #[test]
     fn hashed_percentage_for_object_ids_is_same_for_same_ids() {
         fn check(object_ids: Vec<&str>) {
-            let first_hashed_percetnage = get_hashed_percentage_for_object_ids(object_ids.clone(), 1);
+            let first_hashed_percetnage =
+                get_hashed_percentage_for_object_ids(object_ids.clone(), 1);
             let second_hashed_percetnage = get_hashed_percentage_for_object_ids(object_ids, 1);
             assert_eq!(first_hashed_percetnage, second_hashed_percetnage);
         }

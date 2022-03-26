@@ -3,7 +3,7 @@ pub const ALL_RULE: &str = "ALL";
 pub const ANY_RULE: &str = "ANY";
 pub const NONE_RULE: &str = "NONE";
 
-const RULE_TYPES :[&str; 3] = [ALL_RULE, ANY_RULE, NONE_RULE];
+const RULE_TYPES: [&str; 3] = [ALL_RULE, ANY_RULE, NONE_RULE];
 
 // Segment Condition Operators
 pub const EQUAL: &str = "EQUAL";

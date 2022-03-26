@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 mod constants;
 pub mod evaluator;
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SegmentCondition {
     // Add operator method
     pub operator: String,
@@ -27,24 +26,20 @@ impl SegmentCondition {
             constants::REGEX => {
                 let re = Regex::new(&self.value).unwrap();
                 re.is_match(&trait_value)
-
             }
             _ => false,
         }
     }
 }
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SegmentRule {
     pub r#type: String,
     pub rules: Vec<Box<SegmentRule>>,
     pub conditions: Vec<SegmentCondition>,
 }
 
-
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Segment {
     pub id: u32,
     pub name: String,
