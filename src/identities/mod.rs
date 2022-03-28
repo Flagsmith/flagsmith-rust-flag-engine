@@ -1,4 +1,5 @@
 use super::features;
+use super::utils::datetime;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 pub mod builders;
@@ -12,6 +13,7 @@ pub struct Trait {
 pub struct Identity {
     pub identifier: String,
     pub environment_api_key: String,
+    #[serde(with = "datetime")]
     pub created_date: DateTime<Utc>,
     pub identity_features: Vec<features::FeatureState>,
     pub identity_traits: Vec<Trait>,
@@ -34,7 +36,7 @@ mod tests {
         let identity_json = r#"{
             "identifier": "test_user",
             "environment_api_key": "test_api_key",
-            "created_date": "2022-03-02T12:31:05.309861+00:00",
+            "created_date": "2022-03-02T12:31:05.309861",
             "identity_features": [],
             "identity_traits": [],
             "identity_uuid":""
