@@ -86,7 +86,7 @@ fn traits_match_segment_condition(
                 .filter(|identity_trait| identity_trait.trait_key == property)
                 .next();
             match identity_trait {
-                Some(_trait) => condition.matches_trait_value(_trait.trait_value.clone()),
+                Some(_trait) => condition.matches_trait_value(&_trait.trait_value),
                 None => false,
             }
         }

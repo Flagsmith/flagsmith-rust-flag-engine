@@ -1,22 +1,22 @@
 use super::utils;
 use super::utils::hashing;
 use serde::{Deserialize, Serialize};
-mod featurestate_value;
+pub mod featurestate_value;
 
-#[derive(Eq, PartialEq, Hash, Serialize, Deserialize, Clone)]
+#[derive(Eq, PartialEq, Hash, Serialize, Deserialize, Clone, Debug)]
 pub struct Feature {
     pub id: u32,
     pub name: String,
     r#type: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MultivariateFeatureOption {
     pub value: String, // typing Any
     pub id: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MultivariateFeatureStateValue {
     pub multivariate_feature_option: MultivariateFeatureOption,
     pub percentage_allocation: f32,
@@ -26,7 +26,7 @@ pub struct MultivariateFeatureStateValue {
     pub mv_fs_value_uuid: String,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FeatureState {
     pub feature: Feature,
     pub enabled: bool,

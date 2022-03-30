@@ -3,11 +3,12 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, Unexpected};
 use std::fmt;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum FeatureStateValueType {
     String,
     Bool,
     Integer,
+    Float,
     None,
 }
 
@@ -27,6 +28,7 @@ impl Serialize for FeatureStateValue {
             FeatureStateValueType::Integer => serializer.serialize_i64(self.value.parse().unwrap()),
             FeatureStateValueType::String => serializer.serialize_str(self.value.as_str()),
             FeatureStateValueType::None => serializer.serialize_none(),
+            FeatureStateValueType::Float => serializer.serialize_f64(self.value.parse().unwrap()),
         }
     }
 }
