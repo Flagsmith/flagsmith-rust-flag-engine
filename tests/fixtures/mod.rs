@@ -1,3 +1,5 @@
+use rstest::*;
+
 use flagsmith_rust_flag_engine::segments;
 
 use flagsmith_rust_flag_engine::features::featurestate_value;
@@ -12,6 +14,18 @@ const TRAIT_VALUE_2: &str = "12";
 
 const TRAIT_KEY_3: &str = "date_joined";
 const TRAIT_VALUE_3: &str = "2021-01-01";
+#[fixture]
+pub fn identity() -> identities::Identity {
+    identities::Identity {
+        identifier: "foo".to_string(),
+        identity_uuid: "".to_string(),
+        identity_features: vec![],
+        identity_traits: vec![],
+        django_id: None,
+        created_date: chrono::Utc::now(),
+        environment_api_key: "test_api_key".to_string(),
+    }
+}
 
 pub fn trait_1() -> identities::Trait {
     identities::Trait {
@@ -43,6 +57,7 @@ pub fn trait_3() -> identities::Trait {
     }
 }
 
+#[fixture]
 pub fn empty_segment() -> segments::Segment {
     segments::Segment {
         id: 1,

@@ -2,6 +2,7 @@ use flagsmith_rust_flag_engine::identities;
 use flagsmith_rust_flag_engine::segments;
 use rstest::*;
 mod fixtures;
+use fixtures::identity;
 
 #[rstest]
 #[case(fixtures::empty_segment(), vec![], false)]
@@ -28,16 +29,9 @@ fn test_evaluate_identity_in_segment(
     #[case] segment: segments::Segment,
     #[case] identity_traits: Vec<identities::Trait>,
     #[case] expected_result: bool,
+    mut identity: identities::Identity,
 ) {
-    let identity = identities::Identity {
-        identifier: "foo".to_string(),
-        identity_uuid: "".to_string(),
-        identity_features: vec![],
-        identity_traits: identity_traits,
-        django_id: None,
-        created_date: chrono::Utc::now(),
-        environment_api_key: "test_api_key".to_string(),
-    };
+    identity.identity_traits = identity_traits;
     assert_eq!(
         segments::evaluator::evaluate_identity_in_segment(&identity, &segment, None),
         expected_result
