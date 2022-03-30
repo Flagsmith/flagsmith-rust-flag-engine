@@ -11,6 +11,7 @@ pub struct SegmentCondition {
     // Add operator method
     pub operator: String,
     pub value: String,
+    #[serde(rename = "property_")]
     pub property: Option<String>,
 }
 impl SegmentCondition {
