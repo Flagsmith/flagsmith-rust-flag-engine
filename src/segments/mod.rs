@@ -3,7 +3,7 @@ use crate::features::featurestate_value;
 use super::features;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-mod constants;
+pub mod constants;
 pub mod evaluator;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
