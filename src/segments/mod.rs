@@ -7,12 +7,12 @@ pub mod evaluator;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SegmentCondition {
-    // Add operator method
     pub operator: String,
     pub value: String,
     #[serde(rename = "property_")]
     pub property: Option<String>,
 }
+
 impl SegmentCondition {
     pub fn matches_trait_value(&self, trait_value: &FlagsmithValue) -> bool {
         return match trait_value.value_type {
@@ -64,7 +64,7 @@ impl SegmentCondition {
         match self.operator.as_str() {
             constants::EQUAL => trait_value == segment_value,
             constants::NOT_EQUAL => trait_value != segment_value,
-            constants::GREATER_THAN => trait_value > segment_value, //#TODO : to a float maybe?
+            constants::GREATER_THAN => trait_value > segment_value,
             constants::GREATER_THAN_INCLUSIVE => trait_value >= segment_value,
             constants::LESS_THAN => trait_value < segment_value,
             constants::LESS_THAN_INCLUSIVE => trait_value <= segment_value,

@@ -1,5 +1,6 @@
 use super::features;
 use super::types::FlagsmithValue;
+use super::utils;
 use super::utils::datetime;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -8,18 +9,21 @@ pub mod builders;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Trait {
     pub trait_key: String,
-    pub trait_value: FlagsmithValue, //TODO: typing.Any
+    pub trait_value: FlagsmithValue,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Identity {
     pub identifier: String,
     pub environment_api_key: String,
+
     #[serde(with = "datetime")]
     pub created_date: DateTime<Utc>,
     pub identity_features: Vec<features::FeatureState>,
     pub identity_traits: Vec<Trait>,
-    pub identity_uuid: String, // TODO: Add default value
+
+    #[serde(default = "utils::get_uuid")]
+    pub identity_uuid: String,
     pub django_id: Option<u32>,
 }
 impl Identity {
