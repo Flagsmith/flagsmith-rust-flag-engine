@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Cloning repo
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        submodules: recursive
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
