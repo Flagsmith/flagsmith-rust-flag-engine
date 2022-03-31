@@ -8,7 +8,8 @@ use super::types::FlagsmithValue;
 pub struct Feature {
     pub id: u32,
     pub name: String,
-    r#type: Option<String>,
+    #[serde(rename = "type")]
+    feature_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

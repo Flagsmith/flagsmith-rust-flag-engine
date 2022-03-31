@@ -72,7 +72,7 @@ pub fn segment_single_condition() -> segments::Segment {
         id: 2,
         name: "segment_one_condition".to_string(),
         rules: vec![segments::SegmentRule {
-            r#type: constants::ALL_RULE.to_string(),
+            segment_rule_type: constants::ALL_RULE.to_string(),
             rules: vec![],
             conditions: vec![segments::SegmentCondition {
                 operator: constants::EQUAL.to_string(),
@@ -89,7 +89,7 @@ pub fn segment_multiple_conditions_all() -> segments::Segment {
         id: 3,
         name: "segment_multiple_conditions_all".to_string(),
         rules: vec![segments::SegmentRule {
-            r#type: constants::ALL_RULE.to_string(),
+            segment_rule_type: constants::ALL_RULE.to_string(),
             rules: vec![],
             conditions: vec![
                 segments::SegmentCondition {
@@ -113,7 +113,7 @@ pub fn segment_multiple_conditions_any() -> segments::Segment {
         id: 4,
         name: "segment_multiple_conditions_any".to_string(),
         rules: vec![segments::SegmentRule {
-            r#type: constants::ANY_RULE.to_string(),
+            segment_rule_type: constants::ANY_RULE.to_string(),
             rules: vec![],
             conditions: vec![
                 segments::SegmentCondition {
@@ -137,12 +137,12 @@ pub fn segment_nested_rules_all() -> segments::Segment {
         id: 5,
         name: "segment_nested_rules_all".to_string(),
         rules: vec![segments::SegmentRule {
-            r#type: constants::ALL_RULE.to_string(),
+            segment_rule_type: constants::ALL_RULE.to_string(),
             conditions: vec![],
             rules: vec![
                 Box::new({
                     segments::SegmentRule {
-                        r#type: constants::ALL_RULE.to_string(),
+                        segment_rule_type: constants::ALL_RULE.to_string(),
                         rules: vec![],
                         conditions: vec![
                             segments::SegmentCondition {
@@ -159,7 +159,7 @@ pub fn segment_nested_rules_all() -> segments::Segment {
                     }
                 }),
                 Box::new(segments::SegmentRule {
-                    r#type: constants::ALL_RULE.to_string(),
+                    segment_rule_type: constants::ALL_RULE.to_string(),
                     rules: vec![],
                     conditions: vec![segments::SegmentCondition {
                         operator: constants::EQUAL.to_string(),
@@ -178,7 +178,7 @@ pub fn segment_conditions_and_nested_rules() -> segments::Segment {
         id: 6,
         name: "segment_multiple_conditions_all_and_nested_rules".to_string(),
         rules: vec![segments::SegmentRule {
-            r#type: constants::ALL_RULE.to_string(),
+            segment_rule_type: constants::ALL_RULE.to_string(),
             conditions: vec![segments::SegmentCondition {
                 operator: constants::EQUAL.to_string(),
                 property: Some(TRAIT_KEY_1.to_string()),
@@ -187,7 +187,7 @@ pub fn segment_conditions_and_nested_rules() -> segments::Segment {
             rules: vec![
                 Box::new({
                     segments::SegmentRule {
-                        r#type: constants::ALL_RULE.to_string(),
+                        segment_rule_type: constants::ALL_RULE.to_string(),
                         rules: vec![],
                         conditions: vec![segments::SegmentCondition {
                             operator: constants::EQUAL.to_string(),
@@ -198,7 +198,7 @@ pub fn segment_conditions_and_nested_rules() -> segments::Segment {
                 }),
                 Box::new({
                     segments::SegmentRule {
-                        r#type: constants::ALL_RULE.to_string(),
+                        segment_rule_type: constants::ALL_RULE.to_string(),
                         rules: vec![],
                         conditions: vec![segments::SegmentCondition {
                             operator: constants::EQUAL.to_string(),

@@ -52,7 +52,7 @@ fn traits_match_segment_rule(
         traits_match_segment_condition(&identity_traits, condition, segment_id, identity_id)
     });
     // TODO: true if rules.conditions.len == 0
-    let matches_condtion = match rule.r#type.as_str() {
+    let matches_condtion = match rule.segment_rule_type.as_str() {
         constants::ANY_RULE => rules_iterator.any(|result| result == true),
         constants::ALL_RULE => rules_iterator.all(|result| result == true),
         constants::NONE_RULE => true,

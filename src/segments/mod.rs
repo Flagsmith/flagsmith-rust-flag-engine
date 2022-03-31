@@ -75,7 +75,8 @@ impl SegmentCondition {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SegmentRule {
-    pub r#type: String,
+    #[serde(rename = "type")]
+    pub segment_rule_type: String,
     pub rules: Vec<Box<SegmentRule>>,
     pub conditions: Vec<SegmentCondition>,
 }
