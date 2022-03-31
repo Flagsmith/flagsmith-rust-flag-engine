@@ -4,7 +4,7 @@ use flagsmith_rust_flag_engine::segments;
 
 use flagsmith_rust_flag_engine::identities;
 use flagsmith_rust_flag_engine::segments::constants;
-use flagsmith_rust_flag_engine::types::{FeatureStateValue, FeatureStateValueType};
+use flagsmith_rust_flag_engine::types::{FlagsmithValue, FlagsmithValueType};
 
 const TRAIT_KEY_1: &str = "email";
 const TRAIT_VALUE_1: &str = "user@example.com";
@@ -30,9 +30,9 @@ pub fn identity() -> identities::Identity {
 pub fn trait_1() -> identities::Trait {
     identities::Trait {
         trait_key: TRAIT_KEY_1.to_string(),
-        trait_value: FeatureStateValue {
+        trait_value: FlagsmithValue {
             value: TRAIT_VALUE_1.to_string(),
-            value_type: FeatureStateValueType::String,
+            value_type: FlagsmithValueType::String,
         },
     }
 }
@@ -40,9 +40,9 @@ pub fn trait_1() -> identities::Trait {
 pub fn trait_2() -> identities::Trait {
     identities::Trait {
         trait_key: TRAIT_KEY_2.to_string(),
-        trait_value: FeatureStateValue {
+        trait_value: FlagsmithValue {
             value: TRAIT_VALUE_2.to_string(),
-            value_type: FeatureStateValueType::String,
+            value_type: FlagsmithValueType::String,
         },
     }
 }
@@ -50,9 +50,9 @@ pub fn trait_2() -> identities::Trait {
 pub fn trait_3() -> identities::Trait {
     identities::Trait {
         trait_key: TRAIT_KEY_3.to_string(),
-        trait_value: FeatureStateValue {
+        trait_value: FlagsmithValue {
             value: TRAIT_VALUE_3.to_string(),
-            value_type: FeatureStateValueType::String,
+            value_type: FlagsmithValueType::String,
         },
     }
 }

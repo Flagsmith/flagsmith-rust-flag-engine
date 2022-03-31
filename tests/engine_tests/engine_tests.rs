@@ -4,7 +4,7 @@ use flagsmith_rust_flag_engine::environments;
 use flagsmith_rust_flag_engine::environments::builders::build_environment_struct;
 use flagsmith_rust_flag_engine::identities;
 use flagsmith_rust_flag_engine::identities::builders::build_identity_struct;
-use flagsmith_rust_flag_engine::types::{FeatureStateValue, FeatureStateValueType};
+use flagsmith_rust_flag_engine::types::{FlagsmithValue, FlagsmithValueType};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -60,31 +60,31 @@ fn test_engine(test_json: serde_json::Value) {
             let fs_value = fs.get_value(Some(&identity_id));
 
             match fs_value.value_type {
-                FeatureStateValueType::Bool => assert_eq!(
+                FlagsmithValueType::Bool => assert_eq!(
                     fs_value.value.parse::<bool>().unwrap(),
                     expected_flags[index]["feature_state_value"]
                         .as_bool()
                         .unwrap()
                 ),
-                FeatureStateValueType::Integer => assert_eq!(
+                FlagsmithValueType::Integer => assert_eq!(
                     fs_value.value.parse::<i64>().unwrap(),
                     expected_flags[index]["feature_state_value"]
                         .as_i64()
                         .unwrap()
                 ),
-                FeatureStateValueType::String => assert_eq!(
+                FlagsmithValueType::String => assert_eq!(
                     fs_value.value,
                     expected_flags[index]["feature_state_value"]
                         .as_str()
                         .unwrap()
                 ),
-                FeatureStateValueType::None => assert_eq!(
+                FlagsmithValueType::None => assert_eq!(
                     (),
                     expected_flags[index]["feature_state_value"]
                         .as_null()
                         .unwrap()
                 ),
-                FeatureStateValueType::Float => {
+                FlagsmithValueType::Float => {
                     panic!("Floats are not allowed for feature state value")
                 }
             }

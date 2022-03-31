@@ -4,7 +4,7 @@ use serde::de::{self, Unexpected};
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum FeatureStateValueType {
+pub enum FlagsmithValueType {
     String,
     Bool,
     Integer,
@@ -12,28 +12,28 @@ pub enum FeatureStateValueType {
     None,
 }
 #[derive(Clone, Debug)]
-pub struct FeatureStateValue {
-    pub value_type: FeatureStateValueType,
+pub struct FlagsmithValue {
+    pub value_type: FlagsmithValueType,
     pub value: String,
 }
 
-impl Serialize for FeatureStateValue {
+impl Serialize for FlagsmithValue {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         match self.value_type {
-            FeatureStateValueType::Bool => serializer.serialize_bool(self.value.parse().unwrap()),
-            FeatureStateValueType::Integer => serializer.serialize_i64(self.value.parse().unwrap()),
-            FeatureStateValueType::String => serializer.serialize_str(self.value.as_str()),
-            FeatureStateValueType::None => serializer.serialize_none(),
-            FeatureStateValueType::Float => serializer.serialize_f64(self.value.parse().unwrap()),
+            FlagsmithValueType::Bool => serializer.serialize_bool(self.value.parse().unwrap()),
+            FlagsmithValueType::Integer => serializer.serialize_i64(self.value.parse().unwrap()),
+            FlagsmithValueType::String => serializer.serialize_str(self.value.as_str()),
+            FlagsmithValueType::None => serializer.serialize_none(),
+            FlagsmithValueType::Float => serializer.serialize_f64(self.value.parse().unwrap()),
         }
     }
 }
-struct FeatureStateValueVisitor;
-impl<'de> de::Visitor<'de> for FeatureStateValueVisitor {
-    type Value = FeatureStateValue;
+struct FlagsmithValueVisitor;
+impl<'de> de::Visitor<'de> for FlagsmithValueVisitor {
+    type Value = FlagsmithValue;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("an integer, a string, None or boolean")
@@ -43,9 +43,9 @@ impl<'de> de::Visitor<'de> for FeatureStateValueVisitor {
     where
         E: de::Error,
     {
-        Ok(FeatureStateValue {
+        Ok(FlagsmithValue {
             value: v.to_string(),
-            value_type: FeatureStateValueType::Integer,
+            value_type: FlagsmithValueType::Integer,
         })
     }
 
@@ -53,44 +53,44 @@ impl<'de> de::Visitor<'de> for FeatureStateValueVisitor {
     where
         E: de::Error,
     {
-        Ok(FeatureStateValue {
+        Ok(FlagsmithValue {
             value: v.to_string(),
-            value_type: FeatureStateValueType::Integer,
+            value_type: FlagsmithValueType::Integer,
         })
     }
     fn visit_unit<E>(self) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(FeatureStateValue {
+        Ok(FlagsmithValue {
             value: "".to_string(),
-            value_type: FeatureStateValueType::None,
+            value_type: FlagsmithValueType::None,
         })
     }
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(FeatureStateValue {
+        Ok(FlagsmithValue {
             value: v.to_string(),
-            value_type: FeatureStateValueType::String,
+            value_type: FlagsmithValueType::String,
         })
     }
     fn visit_bool<E>(self, v: bool) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(FeatureStateValue {
+        Ok(FlagsmithValue {
             value: v.to_string(),
-            value_type: FeatureStateValueType::Bool,
+            value_type: FlagsmithValueType::Bool,
         })
     }
 }
-impl<'de> Deserialize<'de> for FeatureStateValue {
-    fn deserialize<D>(deserializer: D) -> Result<FeatureStateValue, D::Error>
+impl<'de> Deserialize<'de> for FlagsmithValue {
+    fn deserialize<D>(deserializer: D) -> Result<FlagsmithValue, D::Error>
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_any(FeatureStateValueVisitor)
+        deserializer.deserialize_any(FlagsmithValueVisitor)
     }
 }

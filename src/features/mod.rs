@@ -2,7 +2,7 @@ use super::utils;
 use super::utils::hashing;
 use serde::{Deserialize, Serialize};
 
-use super::types::{FeatureStateValue, FeatureStateValueType};
+use super::types::{FlagsmithValue, FlagsmithValueType};
 
 #[derive(Eq, PartialEq, Hash, Serialize, Deserialize, Clone, Debug)]
 pub struct Feature {
@@ -13,12 +13,12 @@ pub struct Feature {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MultivariateFeatureOption {
-    pub value: FeatureStateValue,
+    pub value: FlagsmithValue,
     pub id: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct MultivariateFeatureStateValue {
+pub struct MultivariateFlagsmithValue {
     pub multivariate_feature_option: MultivariateFeatureOption,
     pub percentage_allocation: f32,
     pub id: Option<u32>,
@@ -35,13 +35,13 @@ pub struct FeatureState {
 
     #[serde(default = "utils::get_uuid")]
     pub featurestate_uuid: String, // Make this uuid by default
-    pub multivariate_feature_state_values: Vec<MultivariateFeatureStateValue>,
+    pub multivariate_feature_state_values: Vec<MultivariateFlagsmithValue>,
     #[serde(rename = "feature_state_value")]
-    value: FeatureStateValue,
+    value: FlagsmithValue,
 }
 
 impl FeatureState {
-    pub fn get_value(&self, identity_id: Option<&str>) -> FeatureStateValue {
+    pub fn get_value(&self, identity_id: Option<&str>) -> FlagsmithValue {
         let value = match identity_id {
             Some(id) if self.multivariate_feature_state_values.len() > 0 => {
                 self.get_multivariate_value(id)
@@ -50,7 +50,7 @@ impl FeatureState {
         };
         return value;
     }
-    fn get_multivariate_value(&self, identity_id: &str) -> FeatureStateValue {
+    fn get_multivariate_value(&self, identity_id: &str) -> FlagsmithValue {
         let object_id = match self.django_id {
             Some(django_id) => django_id.to_string(),
             None => self.featurestate_uuid.clone(),
