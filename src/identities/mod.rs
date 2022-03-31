@@ -1,6 +1,5 @@
-use crate::features::featurestate_value;
-
 use super::features;
+use super::types::{FeatureStateValue, FeatureStateValueType};
 use super::utils::datetime;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -9,7 +8,7 @@ pub mod builders;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Trait {
     pub trait_key: String,
-    pub trait_value: featurestate_value::FeatureStateValue, //TODO: typing.Any
+    pub trait_value: FeatureStateValue, //TODO: typing.Any
 }
 
 #[derive(Serialize, Deserialize, Debug)]

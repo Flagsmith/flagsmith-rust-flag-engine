@@ -5,4 +5,5 @@ pub mod identities;
 pub mod organisations;
 pub mod projects;
 pub mod segments;
+pub mod types;
 pub mod utils;

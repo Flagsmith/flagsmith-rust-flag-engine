@@ -11,7 +11,6 @@ pub enum FeatureStateValueType {
     Float,
     None,
 }
-
 #[derive(Clone, Debug)]
 pub struct FeatureStateValue {
     pub value_type: FeatureStateValueType,
