@@ -65,7 +65,7 @@ impl<'de> de::Visitor<'de> for FeatureStateValueVisitor {
     {
         Ok(FeatureStateValue {
             value: "".to_string(),
-            value_type: FeatureStateValueType::Integer,
+            value_type: FeatureStateValueType::None,
         })
     }
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
