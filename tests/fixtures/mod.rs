@@ -1,10 +1,10 @@
 use rstest::*;
 
-use flagsmith_rust_flag_engine::segments;
+use flagsmith_flag_engine::segments;
 
-use flagsmith_rust_flag_engine::identities;
-use flagsmith_rust_flag_engine::segments::constants;
-use flagsmith_rust_flag_engine::types::{FlagsmithValue, FlagsmithValueType};
+use flagsmith_flag_engine::identities;
+use flagsmith_flag_engine::segments::constants;
+use flagsmith_flag_engine::types::{FlagsmithValue, FlagsmithValueType};
 
 const TRAIT_KEY_1: &str = "email";
 const TRAIT_VALUE_1: &str = "user@example.com";

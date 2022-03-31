@@ -1,5 +1,5 @@
-use flagsmith_rust_flag_engine::identities;
-use flagsmith_rust_flag_engine::segments;
+use flagsmith_flag_engine::identities;
+use flagsmith_flag_engine::segments;
 use rstest::*;
 mod fixtures;
 use fixtures::identity;

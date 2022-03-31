@@ -67,7 +67,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "flagsmith-rust-flag-engine"
+name = "flagsmith-flag-engine"
 version = "0.1.0"
 dependencies = [
  "chrono",
