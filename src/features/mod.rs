@@ -2,7 +2,7 @@ use super::utils;
 use super::utils::hashing;
 use serde::{Deserialize, Serialize};
 
-use super::types::{FlagsmithValue, FlagsmithValueType};
+use super::types::FlagsmithValue;
 
 #[derive(Eq, PartialEq, Hash, Serialize, Deserialize, Clone, Debug)]
 pub struct Feature {

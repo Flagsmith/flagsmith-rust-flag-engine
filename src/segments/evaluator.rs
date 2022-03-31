@@ -5,7 +5,6 @@ use super::SegmentRule;
 use crate::environments;
 use crate::identities;
 
-use crate::utils::hashing;
 use crate::utils::hashing::get_hashed_percentage_for_object_ids;
 
 pub fn get_identity_segments(

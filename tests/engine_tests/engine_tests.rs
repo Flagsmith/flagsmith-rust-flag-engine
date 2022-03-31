@@ -4,7 +4,7 @@ use flagsmith_rust_flag_engine::environments;
 use flagsmith_rust_flag_engine::environments::builders::build_environment_struct;
 use flagsmith_rust_flag_engine::identities;
 use flagsmith_rust_flag_engine::identities::builders::build_identity_struct;
-use flagsmith_rust_flag_engine::types::{FlagsmithValue, FlagsmithValueType};
+use flagsmith_rust_flag_engine::types::FlagsmithValueType;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;

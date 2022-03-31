@@ -1,5 +1,5 @@
 use super::features;
-use super::types::{FlagsmithValue, FlagsmithValueType};
+use super::types::FlagsmithValue;
 use super::utils::datetime;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use serde::de::{self, Unexpected};
+use serde::de;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]

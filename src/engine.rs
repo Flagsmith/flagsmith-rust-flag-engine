@@ -5,6 +5,7 @@ use super::segments::evaluator;
 use crate::features::Feature;
 use crate::features::FeatureState;
 use std::collections::HashMap;
+
 pub fn get_environment_feature_states(
     environment: environments::Environment,
 ) -> Vec<features::FeatureState> {
@@ -90,11 +91,8 @@ fn get_identity_feature_states_map(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::environments::Environment;
-    use crate::features;
-    use crate::projects::Project;
 
-    static environment_json: &str = r#"
+    static ENVIRONMENT_JSON: &str = r#"
         {
  "api_key": "test_key",
  "project": {
@@ -141,7 +139,7 @@ mod tests {
     #[test]
     fn get_environment_feature_states_only_return_enabled_fs_if_hide_disabled_flags_is_true() {
         let environment: environments::Environment =
-            serde_json::from_str(environment_json).unwrap();
+            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
 
         let environment_feature_states = get_environment_feature_states(environment);
         assert_eq!(environment_feature_states.len(), 1);
@@ -151,7 +149,7 @@ mod tests {
     #[test]
     fn get_environment_feature_state_returns_correct_feature_state() {
         let environment: environments::Environment =
-            serde_json::from_str(environment_json).unwrap();
+            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
         let feature_name = "feature_2";
         let feature_state = get_environment_feature_state(environment, feature_name);
         assert_eq!(feature_state.feature.name, feature_name)
