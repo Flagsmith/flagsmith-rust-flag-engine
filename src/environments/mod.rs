@@ -5,7 +5,7 @@ use super::features;
 use super::projects;
 pub mod builders;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Environment {
     pub id: u32,
     pub api_key: String,
@@ -13,7 +13,7 @@ pub struct Environment {
     pub feature_states: Vec<features::FeatureState>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EnvironmentAPIKey {
     pub id: u32,
     pub key: String,
