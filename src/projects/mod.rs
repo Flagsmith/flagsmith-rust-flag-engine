@@ -2,7 +2,7 @@ use super::organisations;
 use super::segments;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Project {
     pub id: u32,
     pub name: String,

@@ -5,7 +5,7 @@ use super::features;
 use super::projects;
 pub mod builders;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Environment {
     pub id: u32,
     pub api_key: String,
