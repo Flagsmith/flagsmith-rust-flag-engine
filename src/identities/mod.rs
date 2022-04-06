@@ -30,6 +30,17 @@ impl Identity {
     pub fn composite_key(&self) -> String {
         return self.environment_api_key.clone() + "_" + &self.identifier;
     }
+    pub fn new(identifier: String, environment_api_key: String) -> Self {
+        Identity {
+            identifier,
+            environment_api_key,
+            created_date: chrono::Utc::now(),
+            identity_features: vec![],
+            identity_traits: vec![],
+            identity_uuid: utils::get_uuid(),
+            django_id: None,
+        }
+    }
 }
 
 #[cfg(test)]
