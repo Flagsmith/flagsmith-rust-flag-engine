@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 pub mod builders;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Trait {
     pub trait_key: String,
     pub trait_value: FlagsmithValue,
@@ -26,6 +26,7 @@ pub struct Identity {
     pub identity_uuid: String,
     pub django_id: Option<u32>,
 }
+
 impl Identity {
     pub fn composite_key(&self) -> String {
         return self.environment_api_key.clone() + "_" + &self.identifier;
