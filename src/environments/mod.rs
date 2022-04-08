@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use super::features;
 use super::projects;
+use super::utils::datetime;
 pub mod builders;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -18,6 +19,8 @@ pub struct EnvironmentAPIKey {
     pub id: u32,
     pub key: String,
     pub active: bool,
+
+    #[serde(with = "datetime")]
     pub created_at: DateTime<Utc>,
     pub name: String,
     pub client_api_key: String,
