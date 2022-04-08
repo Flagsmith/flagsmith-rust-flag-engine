@@ -19,7 +19,7 @@ pub struct MultivariateFeatureOption {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct MultivariateFlagsmithValue {
+pub struct MultivariateFeatureStateValue {
     pub multivariate_feature_option: MultivariateFeatureOption,
     pub percentage_allocation: f32,
     pub id: Option<u32>,
@@ -36,7 +36,7 @@ pub struct FeatureState {
 
     #[serde(default = "utils::get_uuid")]
     pub featurestate_uuid: String, // Make this uuid by default
-    pub multivariate_feature_state_values: Vec<MultivariateFlagsmithValue>,
+    pub multivariate_feature_state_values: Vec<MultivariateFeatureStateValue>,
     #[serde(rename = "feature_state_value")]
     value: FlagsmithValue,
 }
@@ -90,7 +90,15 @@ mod tests {
     #[test]
     fn deserializing_fs_creates_default_uuid_if_not_present() {
         let feature_state_json = r#"{
-            "multivariate_feature_state_values": [],
+            "multivariate_feature_state_values": [
+        {
+            "id": 3404,
+            "multivariate_feature_option": {
+              "value": "baz"
+            },
+            "percentage_allocation": 30
+          }
+            ],
             "feature_state_value": 1,
             "django_id": 1,
             "feature": {
@@ -103,8 +111,15 @@ mod tests {
         }"#;
 
         let feature_state: FeatureState = serde_json::from_str(feature_state_json).unwrap();
-        assert_eq!(feature_state.featurestate_uuid.is_empty(), false)
+        assert_eq!(feature_state.featurestate_uuid.is_empty(), false);
+        assert_eq!(
+            feature_state.multivariate_feature_state_values[0]
+                .mv_fs_value_uuid
+                .is_empty(),
+            false
+        );
     }
+
     #[test]
     fn serialize_and_deserialize_feature_state() {
         let feature_state_json = serde_json::json!(
