@@ -41,7 +41,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn api_key_is_valid_returns_if_active_and_expired_is_null() {
+    fn api_key_is_valid_returns_true_if_key_is_active_and_expired_is_null() {
         let api_key_json = r#"{
             "key": "ser.test_key",
             "active": true,
@@ -57,7 +57,7 @@ mod tests {
     }
 
     #[test]
-    fn api_key_is_valid_returns_false_if_active_is_false() {
+    fn api_key_is_valid_returns_false_if_key_is_not_active() {
         let api_key_json = r#"{
             "key": "ser.test_key",
             "active": false,
@@ -73,7 +73,7 @@ mod tests {
     }
 
     #[test]
-    fn api_key_is_valid_returns_false_if_active_is_true_but_key_is_expired() {
+    fn api_key_is_valid_returns_false_if_key_is_active_but_expired() {
         let api_key_json = r#"{
             "key": "ser.test_key",
             "active": true,
