@@ -86,6 +86,7 @@ impl FeatureState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::*;
 
     #[test]
     fn deserializing_fs_creates_default_uuid_if_not_present() {
@@ -138,7 +139,55 @@ mod tests {
         );
         let feature_state: FeatureState =
             serde_json::from_value(feature_state_json.clone()).unwrap();
+
         let given_json = serde_json::to_value(&feature_state).unwrap();
         assert_eq!(given_json, feature_state_json)
+    }
+
+    #[rstest]
+    #[case("2", "foo".to_string())] // Generated hash percentage 26
+    #[case("8", "bar".to_string())] // Generated hash percentage 38
+    #[case("1", "control".to_string())] // Generated hash percentage 84
+    fn feature_state_get_value_mv_values(
+        #[case] identity_id: &str,
+        #[case] expected_value: String,
+    ) {
+        let mv_feature_value_1 = "foo";
+        let mv_feature_value_2 = "bar";
+        let feature_state_json = serde_json::json!(
+            {
+                "multivariate_feature_state_values": [
+                    {
+                        "id": 1,
+                        "multivariate_feature_option": {
+                            "id":1,
+                            "value": mv_feature_value_1
+                        },
+                        "percentage_allocation": 30
+                    },
+                    {
+                        "id": 2,
+                        "multivariate_feature_option": {
+                            "id":2,
+                            "value": mv_feature_value_2
+                        },
+                        "percentage_allocation": 30
+                    }
+                ],
+                "feature_state_value": "control",
+                "featurestate_uuid":"a6ff815f-63ed-4e72-99dc-9124c442ce4d",
+                "django_id": 1,
+                "feature": {
+                    "name": "feature1",
+                    "type": null,
+                    "id": 1
+                },
+                "enabled": true
+            }
+        );
+        let feature_state: FeatureState =
+            serde_json::from_value(feature_state_json.clone()).unwrap();
+        let value = feature_state.get_value(Some(identity_id));
+        assert_eq!(value.value, expected_value);
     }
 }
