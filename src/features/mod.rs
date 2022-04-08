@@ -190,4 +190,52 @@ mod tests {
         let value = feature_state.get_value(Some(identity_id));
         assert_eq!(value.value, expected_value);
     }
+
+    #[rstest]
+    fn feature_state_get_value_uses_django_id_for_multivariate_value_calculation_if_not_none() {
+        let mv_feature_value_1 = "foo";
+        let mv_feature_value_2 = "bar";
+        let fs_uuid = "a6ff815f-63ed-4e72-99dc-9124c442ce4d";
+        let feature_state_json = serde_json::json!(
+            {
+                "multivariate_feature_state_values": [
+                    {
+                        "id": 1,
+                        "multivariate_feature_option": {
+                            "id":1,
+                            "value": mv_feature_value_1
+                        },
+                        "percentage_allocation": 30
+                    },
+                    {
+                        "id": 2,
+                        "multivariate_feature_option": {
+                            "id":2,
+                            "value": mv_feature_value_2
+                        },
+                        "percentage_allocation": 30
+                    }
+                ],
+                "feature_state_value": "control",
+                "featurestate_uuid":fs_uuid,
+                "django_id": 1,
+                "feature": {
+                    "name": "feature1",
+                    "type": null,
+                    "id": 1
+                },
+                "enabled": true
+            }
+        );
+        // When
+        let feature_state: FeatureState =
+            serde_json::from_value(feature_state_json.clone()).unwrap();
+
+        // Then
+        let value = feature_state.get_value(Some("1"));
+        // Since hash percentage generated using fs_uuid and identity_id `13` is 9.7
+        // and hash percentage generated using mv_fs django id `1` and identity_id `1` is 84
+        // the value returned should be the control value if django id was used for the calculation
+        assert_eq!(value.value, "control".to_string());
+    }
 }
