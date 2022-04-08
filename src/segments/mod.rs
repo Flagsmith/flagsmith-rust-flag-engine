@@ -92,443 +92,197 @@ pub struct Segment {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::*;
 
-    #[test]
-    fn segment_condition_matches_trait_value() {
-        let test_cases = vec![
-            (
-                constants::EQUAL,
-                "bar",
-                FlagsmithValueType::String,
-                "bar",
-                true,
-            ),
-            (
-                constants::EQUAL,
-                "bar",
-                FlagsmithValueType::String,
-                "baz",
-                false,
-            ),
-            (
-                constants::EQUAL,
-                "1",
-                FlagsmithValueType::Integer,
-                "1",
-                true,
-            ),
-            (
-                constants::EQUAL,
-                "1",
-                FlagsmithValueType::Integer,
-                "2",
-                false,
-            ),
-            (
-                constants::EQUAL,
-                "true",
-                FlagsmithValueType::Bool,
-                "true",
-                true,
-            ),
-            (
-                constants::EQUAL,
-                "false",
-                FlagsmithValueType::Bool,
-                "false",
-                true,
-            ),
-            (
-                constants::EQUAL,
-                "true",
-                FlagsmithValueType::Bool,
-                "false",
-                false,
-            ),
-            (
-                constants::EQUAL,
-                "false",
-                FlagsmithValueType::Bool,
-                "true",
-                false,
-            ),
-            (
-                constants::EQUAL,
-                "1.23",
-                FlagsmithValueType::Float,
-                "1.23",
-                true,
-            ),
-            (
-                constants::EQUAL,
-                "1.23",
-                FlagsmithValueType::Float,
-                "1.25",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "2",
-                FlagsmithValueType::Integer,
-                "1",
-                true,
-            ),
-            (
-                constants::GREATER_THAN,
-                "1",
-                FlagsmithValueType::Integer,
-                "2",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "1",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "0",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.0",
-                true,
-            ),
-            (
-                constants::GREATER_THAN,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.2",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.1",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.1",
-                false,
-            ),
-            (
-                constants::GREATER_THAN,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.0",
-                false,
-            ),
-            (
-                constants::GREATER_THAN_INCLUSIVE,
-                "1",
-                FlagsmithValueType::Integer,
-                "1",
-                true,
-            ),
-            (
-                constants::GREATER_THAN_INCLUSIVE,
-                "2",
-                FlagsmithValueType::Integer,
-                "1",
-                true,
-            ),
-            (
-                constants::GREATER_THAN_INCLUSIVE,
-                "0",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::GREATER_THAN_INCLUSIVE,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.0",
-                true,
-            ),
-            (
-                constants::GREATER_THAN_INCLUSIVE,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.0",
-                true,
-            ),
-            (
-                constants::GREATER_THAN_INCLUSIVE,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.2",
-                false,
-            ),
-            (
-                constants::LESS_THAN,
-                "2",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::LESS_THAN,
-                "1",
-                FlagsmithValueType::Integer,
-                "2",
-                true,
-            ),
-            (
-                constants::LESS_THAN,
-                "1",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::LESS_THAN,
-                "0",
-                FlagsmithValueType::Integer,
-                "1",
-                true,
-            ),
-            (
-                constants::LESS_THAN,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.0",
-                false,
-            ),
-            (
-                constants::LESS_THAN,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.2",
-                true,
-            ),
-            (
-                constants::LESS_THAN,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.1",
-                true,
-            ),
-            (
-                constants::LESS_THAN,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.1",
-                true,
-            ),
-            (
-                constants::LESS_THAN,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.0",
-                false,
-            ),
-            (
-                constants::LESS_THAN_INCLUSIVE,
-                "1",
-                FlagsmithValueType::Integer,
-                "1",
-                true,
-            ),
-            (
-                constants::LESS_THAN_INCLUSIVE,
-                "2",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::LESS_THAN_INCLUSIVE,
-                "1",
-                FlagsmithValueType::Integer,
-                "2",
-                true,
-            ),
-            (
-                constants::LESS_THAN_INCLUSIVE,
-                "2.0",
-                FlagsmithValueType::Float,
-                "2.0",
-                true,
-            ),
-            (
-                constants::LESS_THAN_INCLUSIVE,
-                "2.1",
-                FlagsmithValueType::Float,
-                "2.0",
-                false,
-            ),
-            (
-                constants::LESS_THAN_INCLUSIVE,
-                "2.2",
-                FlagsmithValueType::Float,
-                "2.3",
-                true,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "bar",
-                FlagsmithValueType::String,
-                "bar",
-                false,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "bar",
-                FlagsmithValueType::String,
-                "baz",
-                true,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "1",
-                FlagsmithValueType::Integer,
-                "1",
-                false,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "1",
-                FlagsmithValueType::Integer,
-                "2",
-                true,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "true",
-                FlagsmithValueType::Bool,
-                "true",
-                false,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "false",
-                FlagsmithValueType::Bool,
-                "false",
-                false,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "true",
-                FlagsmithValueType::Bool,
-                "false",
-                true,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "false",
-                FlagsmithValueType::Bool,
-                "true",
-                true,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "1.23",
-                FlagsmithValueType::Float,
-                "1.23",
-                false,
-            ),
-            (
-                constants::NOT_EQUAL,
-                "1.23",
-                FlagsmithValueType::Float,
-                "1.25",
-                true,
-            ),
-            (
-                constants::CONTAINS,
-                "bar",
-                FlagsmithValueType::String,
-                "b",
-                true,
-            ),
-            (
-                constants::CONTAINS,
-                "bar",
-                FlagsmithValueType::String,
-                "bar",
-                true,
-            ),
-            (
-                constants::CONTAINS,
-                "bar",
-                FlagsmithValueType::String,
-                "baz",
-                false,
-            ),
-            (
-                constants::NOT_CONTAINS,
-                "bar",
-                FlagsmithValueType::String,
-                "b",
-                false,
-            ),
-            (
-                constants::NOT_CONTAINS,
-                "bar",
-                FlagsmithValueType::String,
-                "bar",
-                false,
-            ),
-            (
-                constants::NOT_CONTAINS,
-                "bar",
-                FlagsmithValueType::String,
-                "baz",
-                true,
-            ),
-            (
-                constants::REGEX,
-                "foo",
-                FlagsmithValueType::String,
-                r"[a-z]+",
-                true,
-            ),
-            (
-                constants::REGEX,
-                "FOO",
-                FlagsmithValueType::String,
-                r"[a-z]+",
-                false,
-            ),
-        ];
-        fn check(
-            operator: &str,
-            trait_value: &str,
-            trait_value_type: FlagsmithValueType,
-            value: &str,
-            result: bool,
-        ) {
-            let trait_value = FlagsmithValue {
-                value: trait_value.to_string(),
-                value_type: trait_value_type,
-            };
-            let segment_condition = SegmentCondition {
-                operator: operator.to_string(),
-                value: value.to_string(),
-                property: Some("foo".to_string()),
-            };
-            assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
-        }
-        for test_case in test_cases {
-            check(
-                test_case.0,
-                test_case.1,
-                test_case.2,
-                test_case.3,
-                test_case.4,
-            );
-        }
+    #[rstest]
+    #[case(constants::EQUAL, "bar", FlagsmithValueType::String, "bar", true)]
+    #[case(constants::EQUAL, "bar", FlagsmithValueType::String, "baz", false)]
+    #[case(constants::EQUAL, "1", FlagsmithValueType::Integer, "1", true)]
+    #[case(constants::EQUAL, "1", FlagsmithValueType::Integer, "2", false)]
+    #[case(constants::EQUAL, "true", FlagsmithValueType::Bool, "true", true)]
+    #[case(constants::EQUAL, "false", FlagsmithValueType::Bool, "false", true)]
+    #[case(constants::EQUAL, "true", FlagsmithValueType::Bool, "false", false)]
+    #[case(constants::EQUAL, "false", FlagsmithValueType::Bool, "true", false)]
+    #[case(constants::EQUAL, "1.23", FlagsmithValueType::Float, "1.23", true)]
+    #[case(constants::EQUAL, "1.23", FlagsmithValueType::Float, "1.25", false)]
+    #[case(constants::GREATER_THAN, "2", FlagsmithValueType::Integer, "1", true)]
+    #[case(constants::GREATER_THAN, "1", FlagsmithValueType::Integer, "2", false)]
+    #[case(constants::GREATER_THAN, "1", FlagsmithValueType::Integer, "1", false)]
+    #[case(constants::GREATER_THAN, "0", FlagsmithValueType::Integer, "1", false)]
+    #[case(constants::GREATER_THAN, "2.1", FlagsmithValueType::Float, "2.0", true)]
+    #[case(
+        constants::GREATER_THAN,
+        "2.1",
+        FlagsmithValueType::Float,
+        "2.2",
+        false
+    )]
+    #[case(
+        constants::GREATER_THAN,
+        "2.0",
+        FlagsmithValueType::Float,
+        "2.1",
+        false
+    )]
+    #[case(
+        constants::GREATER_THAN,
+        "2.0",
+        FlagsmithValueType::Float,
+        "2.1",
+        false
+    )]
+    #[case(
+        constants::GREATER_THAN,
+        "2.0",
+        FlagsmithValueType::Float,
+        "2.0",
+        false
+    )]
+    #[case(
+        constants::GREATER_THAN_INCLUSIVE,
+        "1",
+        FlagsmithValueType::Integer,
+        "1",
+        true
+    )]
+    #[case(
+        constants::GREATER_THAN_INCLUSIVE,
+        "2",
+        FlagsmithValueType::Integer,
+        "1",
+        true
+    )]
+    #[case(
+        constants::GREATER_THAN_INCLUSIVE,
+        "0",
+        FlagsmithValueType::Integer,
+        "1",
+        false
+    )]
+    #[case(
+        constants::GREATER_THAN_INCLUSIVE,
+        "2.0",
+        FlagsmithValueType::Float,
+        "2.0",
+        true
+    )]
+    #[case(
+        constants::GREATER_THAN_INCLUSIVE,
+        "2.1",
+        FlagsmithValueType::Float,
+        "2.0",
+        true
+    )]
+    #[case(
+        constants::GREATER_THAN_INCLUSIVE,
+        "2.1",
+        FlagsmithValueType::Float,
+        "2.2",
+        false
+    )]
+    #[case(constants::LESS_THAN, "2", FlagsmithValueType::Integer, "1", false)]
+    #[case(constants::LESS_THAN, "1", FlagsmithValueType::Integer, "2", true)]
+    #[case(constants::LESS_THAN, "1", FlagsmithValueType::Integer, "1", false)]
+    #[case(constants::LESS_THAN, "0", FlagsmithValueType::Integer, "1", true)]
+    #[case(constants::LESS_THAN, "2.1", FlagsmithValueType::Float, "2.0", false)]
+    #[case(constants::LESS_THAN, "2.1", FlagsmithValueType::Float, "2.2", true)]
+    #[case(constants::LESS_THAN, "2.0", FlagsmithValueType::Float, "2.1", true)]
+    #[case(constants::LESS_THAN, "2.0", FlagsmithValueType::Float, "2.1", true)]
+    #[case(constants::LESS_THAN, "2.0", FlagsmithValueType::Float, "2.0", false)]
+    #[case(
+        constants::LESS_THAN_INCLUSIVE,
+        "1",
+        FlagsmithValueType::Integer,
+        "1",
+        true
+    )]
+    #[case(
+        constants::LESS_THAN_INCLUSIVE,
+        "2",
+        FlagsmithValueType::Integer,
+        "1",
+        false
+    )]
+    #[case(
+        constants::LESS_THAN_INCLUSIVE,
+        "1",
+        FlagsmithValueType::Integer,
+        "2",
+        true
+    )]
+    #[case(
+        constants::LESS_THAN_INCLUSIVE,
+        "2.0",
+        FlagsmithValueType::Float,
+        "2.0",
+        true
+    )]
+    #[case(
+        constants::LESS_THAN_INCLUSIVE,
+        "2.1",
+        FlagsmithValueType::Float,
+        "2.0",
+        false
+    )]
+    #[case(
+        constants::LESS_THAN_INCLUSIVE,
+        "2.2",
+        FlagsmithValueType::Float,
+        "2.3",
+        true
+    )]
+    #[case(constants::NOT_EQUAL, "bar", FlagsmithValueType::String, "bar", false)]
+    #[case(constants::NOT_EQUAL, "bar", FlagsmithValueType::String, "baz", true)]
+    #[case(constants::NOT_EQUAL, "1", FlagsmithValueType::Integer, "1", false)]
+    #[case(constants::NOT_EQUAL, "1", FlagsmithValueType::Integer, "2", true)]
+    #[case(constants::NOT_EQUAL, "true", FlagsmithValueType::Bool, "true", false)]
+    #[case(
+        constants::NOT_EQUAL,
+        "false",
+        FlagsmithValueType::Bool,
+        "false",
+        false
+    )]
+    #[case(constants::NOT_EQUAL, "true", FlagsmithValueType::Bool, "false", true)]
+    #[case(constants::NOT_EQUAL, "false", FlagsmithValueType::Bool, "true", true)]
+    #[case(constants::NOT_EQUAL, "1.23", FlagsmithValueType::Float, "1.23", false)]
+    #[case(constants::NOT_EQUAL, "1.23", FlagsmithValueType::Float, "1.25", true)]
+    #[case(constants::CONTAINS, "bar", FlagsmithValueType::String, "b", true)]
+    #[case(constants::CONTAINS, "bar", FlagsmithValueType::String, "bar", true)]
+    #[case(constants::CONTAINS, "bar", FlagsmithValueType::String, "baz", false)]
+    #[case(constants::NOT_CONTAINS, "bar", FlagsmithValueType::String, "b", false)]
+    #[case(
+        constants::NOT_CONTAINS,
+        "bar",
+        FlagsmithValueType::String,
+        "bar",
+        false
+    )]
+    #[case(
+        constants::NOT_CONTAINS,
+        "bar",
+        FlagsmithValueType::String,
+        "baz",
+        true
+    )]
+    #[case(constants::REGEX, "foo", FlagsmithValueType::String, r"[a-z]+", true)]
+    #[case(constants::REGEX, "FOO", FlagsmithValueType::String, r"[a-z]+", false)]
+    fn segemnt_condition_matches_trait_value(
+        #[case] operator: &str,
+        #[case] trait_value: &str,
+        #[case] trait_value_type: FlagsmithValueType,
+        #[case] value: &str,
+        #[case] result: bool,
+    ) {
+        let trait_value = FlagsmithValue {
+            value: trait_value.to_string(),
+            value_type: trait_value_type,
+        };
+        let segment_condition = SegmentCondition {
+            operator: operator.to_string(),
+            value: value.to_string(),
+            property: Some("foo".to_string()),
+        };
+        assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
     }
 }
