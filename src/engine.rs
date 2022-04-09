@@ -51,6 +51,7 @@ pub fn get_identity_feature_states(
     }
     return feature_states.collect();
 }
+
 // Returns a specific feature state based on the environment, any matching
 // segments and any specific identity overrides
 // If exists else returns a FeatureStateNotFound error
@@ -100,7 +101,14 @@ fn get_identity_feature_states_map(
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    static IDENTITY_JSON: &str = r#"{
+            "identifier": "test_user",
+            "environment_api_key": "test_api_key",
+            "created_date": "2022-03-02T12:31:05.309861",
+            "identity_features": [],
+            "identity_traits": [],
+            "identity_uuid":""
+        }"#;
     static ENVIRONMENT_JSON: &str = r#"
         {
  "api_key": "test_key",
@@ -170,6 +178,28 @@ mod tests {
             serde_json::from_str(ENVIRONMENT_JSON).unwrap();
         let feature_name = "feature_that_does_not_exists";
         let err = get_environment_feature_state(environment, feature_name)
+            .err()
+            .unwrap();
+        assert_eq!(err.kind, error::ErrorKind::FeatureStateNotFound)
+    }
+
+    #[test]
+    fn get_identity_feature_state_returns_correct_feature_state() {
+        let environment: environments::Environment =
+            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
+        let feature_name = "feature_2";
+        let identity: identities::Identity = serde_json::from_str(IDENTITY_JSON).unwrap();
+        let feature_state =
+            get_identity_feature_state(&environment, &identity, feature_name, None).unwrap();
+        assert_eq!(feature_state.feature.name, feature_name)
+    }
+    #[test]
+    fn get_identity_feature_state_returns_error_if_feature_state_does_not_exists() {
+        let environment: environments::Environment =
+            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
+        let feature_name = "feature_that_does_not_exists";
+        let identity: identities::Identity = serde_json::from_str(IDENTITY_JSON).unwrap();
+        let err = get_identity_feature_state(&environment, &identity, feature_name, None)
             .err()
             .unwrap();
         assert_eq!(err.kind, error::ErrorKind::FeatureStateNotFound)
