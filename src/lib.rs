@@ -1,5 +1,6 @@
 pub mod engine;
 pub mod environments;
+pub mod error;
 pub mod features;
 pub mod identities;
 pub mod organisations;

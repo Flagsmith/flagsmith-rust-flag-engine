@@ -1,4 +1,5 @@
 use super::environments;
+use super::error;
 use super::features;
 use super::identities;
 use super::segments::evaluator;
@@ -6,6 +7,7 @@ use crate::features::Feature;
 use crate::features::FeatureState;
 use std::collections::HashMap;
 
+//Returns a vector of feature states for a given environment
 pub fn get_environment_feature_states(
     environment: environments::Environment,
 ) -> Vec<features::FeatureState> {
@@ -20,20 +22,23 @@ pub fn get_environment_feature_states(
     return environment.feature_states;
 }
 
+// Returns a specific feature state for a given feature_name in a given environment
+// If exists else returns a FeatureStateNotFound error
 pub fn get_environment_feature_state(
     environment: environments::Environment,
     feature_name: &str,
-) -> features::FeatureState {
-    // TODO handle error here
-    return environment
+) -> Result<features::FeatureState, error::Error> {
+    let fs = environment
         .feature_states
         .iter()
         .filter(|fs| fs.feature.name == feature_name)
         .next()
-        .unwrap()
-        .clone();
+        .ok_or(error::Error::new(error::ErrorKind::FeatureStateNotFound));
+    return Ok(fs?.clone());
 }
 
+// Returns a vector of feature state models based on the environment, any matching
+// segments and any specific identity overrides
 pub fn get_identity_feature_states(
     environment: &environments::Environment,
     identity: &identities::Identity,
@@ -46,19 +51,23 @@ pub fn get_identity_feature_states(
     }
     return feature_states.collect();
 }
-
+// Returns a specific feature state based on the environment, any matching
+// segments and any specific identity overrides
+// If exists else returns a FeatureStateNotFound error
 pub fn get_identity_feature_state(
     environment: &environments::Environment,
     identity: &identities::Identity,
     feature_name: &str,
     override_traits: Option<&Vec<identities::Trait>>,
-) -> features::FeatureState {
+) -> Result<features::FeatureState, error::Error> {
     let feature_states =
         get_identity_feature_states_map(environment, identity, override_traits).into_values();
-    feature_states
+    let fs = feature_states
         .filter(|fs| fs.feature.name == feature_name)
         .next()
-        .unwrap()
+        .ok_or(error::Error::new(error::ErrorKind::FeatureStateNotFound));
+
+    return Ok(fs?.clone());
 }
 
 fn get_identity_feature_states_map(
@@ -151,7 +160,18 @@ mod tests {
         let environment: environments::Environment =
             serde_json::from_str(ENVIRONMENT_JSON).unwrap();
         let feature_name = "feature_2";
-        let feature_state = get_environment_feature_state(environment, feature_name);
+        let feature_state = get_environment_feature_state(environment, feature_name).unwrap();
         assert_eq!(feature_state.feature.name, feature_name)
+    }
+
+    #[test]
+    fn get_environment_feature_state_returns_error_if_feature_state_does_not_exists() {
+        let environment: environments::Environment =
+            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
+        let feature_name = "feature_that_does_not_exists";
+        let err = get_environment_feature_state(environment, feature_name)
+            .err()
+            .unwrap();
+        assert_eq!(err.kind, error::ErrorKind::FeatureStateNotFound)
     }
 }
