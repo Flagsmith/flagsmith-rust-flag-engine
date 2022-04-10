@@ -11,10 +11,20 @@ pub enum FlagsmithValueType {
     Float,
     None,
 }
+
 #[derive(Clone, Debug)]
 pub struct FlagsmithValue {
     pub value_type: FlagsmithValueType,
     pub value: String,
+}
+
+impl Default for FlagsmithValue {
+    fn default() -> Self {
+        FlagsmithValue {
+            value_type: FlagsmithValueType::None,
+            value: "".to_string(),
+        }
+    }
 }
 
 impl Serialize for FlagsmithValue {
@@ -31,6 +41,7 @@ impl Serialize for FlagsmithValue {
         }
     }
 }
+
 struct FlagsmithValueVisitor;
 impl<'de> de::Visitor<'de> for FlagsmithValueVisitor {
     type Value = FlagsmithValue;
