@@ -12,7 +12,7 @@ pub enum FlagsmithValueType {
     None,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct FlagsmithValue {
     pub value_type: FlagsmithValueType,
     pub value: String,
