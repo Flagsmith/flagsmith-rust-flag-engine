@@ -14,6 +14,7 @@ const TRAIT_VALUE_2: &str = "12";
 
 const TRAIT_KEY_3: &str = "date_joined";
 const TRAIT_VALUE_3: &str = "2021-01-01";
+
 #[fixture]
 pub fn identity() -> identities::Identity {
     identities::Identity {
