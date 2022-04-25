@@ -27,17 +27,16 @@ pub fn evaluate_identity_in_segment(
     override_traits: Option<&Vec<identities::Trait>>,
 ) -> bool {
     let traits = override_traits.unwrap_or(&identity.identity_traits);
+    let identity_id = match identity.django_id {
+        Some(django_id) => django_id.to_string(),
+        None => identity.composite_key(),
+    };
     segment.rules.len() > 0
         && segment
             .rules
             .iter()
             .map(|rule| {
-                traits_match_segment_rule(
-                    traits,
-                    rule,
-                    &segment.id.to_string(),
-                    &identity.composite_key(),
-                )
+                traits_match_segment_rule(traits, rule, &segment.id.to_string(), &identity_id)
             })
             .all(|result| result)
 }
