@@ -35,7 +35,7 @@ pub struct FeatureState {
     pub django_id: Option<u32>,
 
     #[serde(default = "utils::get_uuid")]
-    pub featurestate_uuid: String, // Make this uuid by default
+    pub featurestate_uuid: String,
     pub multivariate_feature_state_values: Vec<MultivariateFeatureStateValue>,
     #[serde(rename = "feature_state_value")]
     value: FlagsmithValue,
