@@ -75,8 +75,7 @@ impl FeatureState {
             Some(segment) if self.feature_segment.is_some() => {
                 self.feature_segment.as_ref().unwrap().priority < segment.priority
             }
-            Some(_segment) => false,
-            None => false,
+            _ => false,
         }
     }
     fn get_multivariate_value(&self, identity_id: &str) -> FlagsmithValue {
