@@ -2,8 +2,9 @@
 name = "flagsmith-flag-engine"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description= "This project is the rust clone of flagsmith flag engine: https://github.com/Flagsmith/flagsmith-engine"
+readme = "README.md"
+license = "BSD-3-Clause"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
