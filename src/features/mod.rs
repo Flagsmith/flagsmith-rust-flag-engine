@@ -170,6 +170,7 @@ mod tests {
         let given_json = serde_json::to_value(&feature_state).unwrap();
         assert_eq!(given_json, feature_state_json)
     }
+
     #[test]
     fn feature_state_is_higher_segment_priority_when_both_fs_don_not_have_feature_segment() {
         // Given
@@ -197,6 +198,11 @@ mod tests {
             feature_state_1.is_higher_segment_priority(&feature_state_2),
             false
         );
+        assert_eq!(
+            feature_state_2.is_higher_segment_priority(&feature_state_1),
+            false
+        );
+
         // Now add feature_segment to feature_state_2
         feature_state_2.feature_segment = Some(FeatureSegment { priority: 1 });
 
@@ -205,21 +211,21 @@ mod tests {
             feature_state_1.is_higher_segment_priority(&feature_state_2),
             false
         );
+        // And, this true
+        assert_eq!(
+            feature_state_2.is_higher_segment_priority(&feature_state_1),
+            true
+        );
 
         // Next, let's add a feature segment with higher priority to `feature_state_1`
         feature_state_1.feature_segment = Some(FeatureSegment { priority: 0 });
-        // and this should be true now
         assert_eq!(
             feature_state_1.is_higher_segment_priority(&feature_state_2),
             true
         );
-
-        // Finally let's remove feature segment from `feature_state_2`
-        feature_state_2.feature_segment = None;
-        // And `feature_state_1` should still be higher priority
         assert_eq!(
-            feature_state_1.is_higher_segment_priority(&feature_state_2),
-            true
+            feature_state_2.is_higher_segment_priority(&feature_state_1),
+            false
         );
     }
 
