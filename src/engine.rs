@@ -88,6 +88,12 @@ fn get_identity_feature_states_map(
         evaluator::get_identity_segments(environment, identity, override_traits);
     for matching_segments in identity_segments {
         for feature_state in matching_segments.feature_states {
+            let existing = feature_states.get(&feature_state.feature);
+            if existing.is_some() {
+                if existing.unwrap().is_higher_segment_priority(&feature_state) {
+                    continue;
+                }
+            }
             feature_states.insert(feature_state.feature.clone(), feature_state);
         }
     }
