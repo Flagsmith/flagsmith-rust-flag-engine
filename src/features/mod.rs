@@ -72,8 +72,8 @@ impl FeatureState {
     pub fn is_higher_segment_priority(&self, other: &FeatureState) -> bool {
         match &other.feature_segment {
             None if self.feature_segment.is_some() => true,
-            Some(segment) if self.feature_segment.is_some() => {
-                self.feature_segment.as_ref().unwrap().priority < segment.priority
+            Some(feature_segment) if self.feature_segment.is_some() => {
+                self.feature_segment.as_ref().unwrap().priority < feature_segment.priority
             }
             _ => false,
         }
@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn feature_state_is_higher_segment_priority_when_both_fs_don_not_have_feature_segment() {
+    fn feature_state_is_higher_segment_priority() {
         // Given
         let feature_state_json = serde_json::json!(
             {
