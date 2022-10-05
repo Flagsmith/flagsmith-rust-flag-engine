@@ -65,6 +65,7 @@ fn traits_match_segment_rule(
             })
             .all(|result| result == true);
 }
+
 fn traits_match_segment_condition(
     identity_traits: &Vec<identities::Trait>,
     condition: &SegmentCondition,
@@ -82,11 +83,55 @@ fn traits_match_segment_condition(
                 .iter()
                 .filter(|identity_trait| identity_trait.trait_key == property)
                 .next();
-            match identity_trait {
-                Some(_trait) => condition.matches_trait_value(&_trait.trait_value),
-                None => false,
+            if condition.operator == constants::IS_SET {
+                return identity_trait.is_some();
             }
+
+            if condition.operator == constants::IS_NOT_SET {
+                return identity_trait.is_none();
+            }
+
+            if identity_trait.is_some() {
+                return condition.matches_trait_value(&identity_trait.unwrap().trait_value);
+            }
+
+            return false;
         }
         None => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::types::FlagsmithValue;
+
+    use super::*;
+    use rstest::*;
+
+    #[rstest]
+    #[case(constants::IS_SET, "foo", "foo", true)]
+    #[case(constants::IS_SET, "foo", "bar", false)]
+    #[case(constants::IS_NOT_SET, "foo", "foo", false)]
+    #[case(constants::IS_NOT_SET, "foo", "bar", true)]
+    fn trait_matches_segmnt_condition_is_and_is_not(
+        #[case] operator: &str,
+        #[case] property: &str,
+        #[case] trait_key: &str,
+        #[case] expected_result: bool,
+    ) {
+        let condition = SegmentCondition {
+            property: Some(property.to_string()),
+            operator: operator.to_string(),
+            value: "".to_string(),
+        };
+        let traits = vec![identities::Trait {
+            trait_key: trait_key.to_string(),
+            trait_value: FlagsmithValue {
+                value: "".to_string(),
+                value_type: crate::types::FlagsmithValueType::None,
+            },
+        }];
+        let result = traits_match_segment_condition(&traits, &condition, "1", "1");
+        assert_eq!(result, expected_result);
     }
 }
