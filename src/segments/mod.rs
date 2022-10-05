@@ -16,6 +16,9 @@ pub struct SegmentCondition {
 
 impl SegmentCondition {
     pub fn matches_trait_value(&self, trait_value: &FlagsmithValue) -> bool {
+        if self.operator.as_str() == constants::MODULO {
+            return self.modulo_operations(trait_value, &self.value);
+        }
         return match trait_value.value_type {
             FlagsmithValueType::Integer => {
                 let trait_value: i64 = trait_value.value.parse().unwrap();
@@ -55,6 +58,26 @@ impl SegmentCondition {
             }
             _ => false,
         }
+    }
+    fn modulo_operations(&self, trait_value: &FlagsmithValue, segment_value: &str) -> bool {
+        let values: Vec<&str> = segment_value.split("|").collect();
+        if values.len() != 2 {
+            return false;
+        }
+        let divisor: f64 = match values[0].parse() {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        let remainder: f64 = match values[1].parse() {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+
+        let trait_value: f64 = match trait_value.value.parse() {
+            Ok(v) => v,
+            Err(_) => return false,
+        };
+        return (trait_value % divisor) == remainder;
     }
     fn semver_operations(&self, trait_value: Version, segment_value: Version) -> bool {
         match self.operator.as_str() {
@@ -466,6 +489,34 @@ mod tests {
         };
         let segment_condition = SegmentCondition {
             operator: operator.to_string(),
+            value: value.to_string(),
+            property: Some("foo".to_string()),
+        };
+        assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
+    }
+
+    #[rstest]
+    #[case("1", FlagsmithValueType::Integer, "2|0", false)]
+    #[case("1.1", FlagsmithValueType::Float, "2.1|1.1", true)]
+    #[case("2", FlagsmithValueType::Integer, "2|0", true)]
+    #[case("3", FlagsmithValueType::Integer, "2|0", false)]
+    #[case("34.2", FlagsmithValueType::Float, "4|3", false)]
+    #[case("35.0", FlagsmithValueType::Float, "4|3", true)]
+    #[case("bar", FlagsmithValueType::String, "3|0", false)]
+    #[case("1.0.0", FlagsmithValueType::String, "3|0", false)]
+    #[case("false", FlagsmithValueType::Bool, "1|3", false)]
+    fn segment_condition_matches_trait_value_modulo(
+        #[case] trait_value: &str,
+        #[case] trait_value_type: FlagsmithValueType,
+        #[case] value: &str,
+        #[case] result: bool,
+    ) {
+        let trait_value = FlagsmithValue {
+            value: trait_value.to_string(),
+            value_type: trait_value_type,
+        };
+        let segment_condition = SegmentCondition {
+            operator: constants::MODULO.to_string(),
             value: value.to_string(),
             property: Some("foo".to_string()),
         };
