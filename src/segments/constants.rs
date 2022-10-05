@@ -14,3 +14,4 @@ pub const NOT_CONTAINS: &str = "NOT_CONTAINS";
 pub const NOT_EQUAL: &str = "NOT_EQUAL";
 pub const REGEX: &str = "REGEX";
 pub const PERCENTAGE_SPLIT: &str = "PERCENTAGE_SPLIT";
+pub const MODULO: &str = "MODULO";
