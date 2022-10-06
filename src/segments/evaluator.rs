@@ -73,7 +73,7 @@ fn traits_match_segment_condition(
     identity_id: &str,
 ) -> bool {
     if condition.operator == constants::PERCENTAGE_SPLIT {
-        let float_value: f32 = condition.value.parse().unwrap();
+        let float_value: f32 = condition.value.as_ref().unwrap().parse().unwrap();
         return get_hashed_percentage_for_object_ids(vec![segment_id, identity_id], 1)
             <= float_value;
     }
@@ -122,7 +122,7 @@ mod tests {
         let condition = SegmentCondition {
             property: Some(property.to_string()),
             operator: operator.to_string(),
-            value: "".to_string(),
+            value: None,
         };
         let traits = vec![identities::Trait {
             trait_key: trait_key.to_string(),
