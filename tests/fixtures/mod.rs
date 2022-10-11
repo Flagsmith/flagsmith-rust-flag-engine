@@ -78,7 +78,7 @@ pub fn segment_single_condition() -> segments::Segment {
             conditions: vec![segments::SegmentCondition {
                 operator: constants::EQUAL.to_string(),
                 property: Some(TRAIT_KEY_1.to_string()),
-                value: TRAIT_VALUE_1.to_string(),
+                value: Some(TRAIT_VALUE_1.to_string()),
             }],
         }],
         feature_states: vec![],
@@ -96,12 +96,12 @@ pub fn segment_multiple_conditions_all() -> segments::Segment {
                 segments::SegmentCondition {
                     operator: constants::EQUAL.to_string(),
                     property: Some(TRAIT_KEY_1.to_string()),
-                    value: TRAIT_VALUE_1.to_string(),
+                    value: Some(TRAIT_VALUE_1.to_string()),
                 },
                 segments::SegmentCondition {
                     operator: constants::EQUAL.to_string(),
                     property: Some(TRAIT_KEY_2.to_string()),
-                    value: TRAIT_VALUE_2.to_string(),
+                    value: Some(TRAIT_VALUE_2.to_string()),
                 },
             ],
         }],
@@ -120,12 +120,12 @@ pub fn segment_multiple_conditions_any() -> segments::Segment {
                 segments::SegmentCondition {
                     operator: constants::EQUAL.to_string(),
                     property: Some(TRAIT_KEY_1.to_string()),
-                    value: TRAIT_VALUE_1.to_string(),
+                    value: Some(TRAIT_VALUE_1.to_string()),
                 },
                 segments::SegmentCondition {
                     operator: constants::EQUAL.to_string(),
                     property: Some(TRAIT_KEY_2.to_string()),
-                    value: TRAIT_VALUE_2.to_string(),
+                    value: Some(TRAIT_VALUE_2.to_string()),
                 },
             ],
         }],
@@ -149,12 +149,12 @@ pub fn segment_nested_rules_all() -> segments::Segment {
                             segments::SegmentCondition {
                                 operator: constants::EQUAL.to_string(),
                                 property: Some(TRAIT_KEY_1.to_string()),
-                                value: TRAIT_VALUE_1.to_string(),
+                                value: Some(TRAIT_VALUE_1.to_string()),
                             },
                             segments::SegmentCondition {
                                 operator: constants::EQUAL.to_string(),
                                 property: Some(TRAIT_KEY_2.to_string()),
-                                value: TRAIT_VALUE_2.to_string(),
+                                value: Some(TRAIT_VALUE_2.to_string()),
                             },
                         ],
                     }
@@ -165,7 +165,7 @@ pub fn segment_nested_rules_all() -> segments::Segment {
                     conditions: vec![segments::SegmentCondition {
                         operator: constants::EQUAL.to_string(),
                         property: Some(TRAIT_KEY_3.to_string()),
-                        value: TRAIT_VALUE_3.to_string(),
+                        value: Some(TRAIT_VALUE_3.to_string()),
                     }],
                 }),
             ],
@@ -183,7 +183,7 @@ pub fn segment_conditions_and_nested_rules() -> segments::Segment {
             conditions: vec![segments::SegmentCondition {
                 operator: constants::EQUAL.to_string(),
                 property: Some(TRAIT_KEY_1.to_string()),
-                value: TRAIT_VALUE_1.to_string(),
+                value: Some(TRAIT_VALUE_1.to_string()),
             }],
             rules: vec![
                 Box::new({
@@ -193,7 +193,7 @@ pub fn segment_conditions_and_nested_rules() -> segments::Segment {
                         conditions: vec![segments::SegmentCondition {
                             operator: constants::EQUAL.to_string(),
                             property: Some(TRAIT_KEY_2.to_string()),
-                            value: TRAIT_VALUE_2.to_string(),
+                            value: Some(TRAIT_VALUE_2.to_string()),
                         }],
                     }
                 }),
@@ -204,7 +204,7 @@ pub fn segment_conditions_and_nested_rules() -> segments::Segment {
                         conditions: vec![segments::SegmentCondition {
                             operator: constants::EQUAL.to_string(),
                             property: Some(TRAIT_KEY_3.to_string()),
-                            value: TRAIT_VALUE_3.to_string(),
+                            value: Some(TRAIT_VALUE_3.to_string()),
                         }],
                     }
                 }),

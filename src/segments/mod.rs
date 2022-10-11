@@ -9,7 +9,7 @@ pub mod evaluator;
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct SegmentCondition {
     pub operator: String,
-    pub value: String,
+    pub value: Option<String>,
     #[serde(rename = "property_")]
     pub property: Option<String>,
 }
@@ -17,30 +17,34 @@ pub struct SegmentCondition {
 impl SegmentCondition {
     pub fn matches_trait_value(&self, trait_value: &FlagsmithValue) -> bool {
         if self.operator.as_str() == constants::MODULO {
-            return self.modulo_operations(trait_value, &self.value);
+            return self.modulo_operations(trait_value, &self.value.as_ref().unwrap());
         }
         return match trait_value.value_type {
             FlagsmithValueType::Integer => {
                 let trait_value: i64 = trait_value.value.parse().unwrap();
-                let segment_condition_value: i64 = self.value.clone().parse().unwrap();
+                let segment_condition_value: i64 = self.value.as_ref().unwrap().parse().unwrap();
 
                 self.number_operations(trait_value, segment_condition_value)
             }
             FlagsmithValueType::Float => {
                 let trait_value: f64 = trait_value.value.parse().unwrap();
-                let segment_condition_value: f64 = self.value.clone().parse().unwrap();
+                let segment_condition_value: f64 = self.value.as_ref().unwrap().parse().unwrap();
                 self.number_operations(trait_value, segment_condition_value)
             }
-            FlagsmithValueType::String if self.value.ends_with(":semver") => {
+            FlagsmithValueType::String if self.value.as_ref().unwrap().ends_with(":semver") => {
                 let trait_value = Version::parse(&trait_value.value).unwrap();
-                let segment_condition_value =
-                    Version::parse(&self.value.clone()[..self.value.len() - 7]).unwrap();
+                let segment_condition_value = Version::parse(
+                    &self.value.as_ref().unwrap()[..self.value.as_ref().unwrap().len() - 7],
+                )
+                .unwrap();
                 self.semver_operations(trait_value, segment_condition_value)
             }
-            FlagsmithValueType::String => self.string_operations(&trait_value.value, &self.value),
+            FlagsmithValueType::String => {
+                self.string_operations(&trait_value.value, &self.value.as_ref().unwrap())
+            }
             FlagsmithValueType::Bool => {
                 let trait_value: bool = trait_value.value.parse().unwrap();
-                let segment_condition_value: bool = self.value.clone().parse().unwrap();
+                let segment_condition_value: bool = self.value.clone().unwrap().parse().unwrap();
                 self.bool_operations(trait_value, segment_condition_value)
             }
             _ => false,
@@ -50,10 +54,10 @@ impl SegmentCondition {
         match self.operator.as_str() {
             constants::EQUAL => trait_value == segment_value,
             constants::NOT_EQUAL => trait_value != segment_value,
-            constants::CONTAINS => trait_value.contains(&self.value),
-            constants::NOT_CONTAINS => !trait_value.contains(&self.value),
+            constants::CONTAINS => trait_value.contains(segment_value),
+            constants::NOT_CONTAINS => !trait_value.contains(segment_value),
             constants::REGEX => {
-                let re = Regex::new(&self.value).unwrap();
+                let re = Regex::new(segment_value).unwrap();
                 re.is_match(&trait_value)
             }
             _ => false,
@@ -321,7 +325,7 @@ mod tests {
         };
         let segment_condition = SegmentCondition {
             operator: operator.to_string(),
-            value: value.to_string(),
+            value: Some(value.to_string()),
             property: Some("foo".to_string()),
         };
         assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
@@ -489,7 +493,7 @@ mod tests {
         };
         let segment_condition = SegmentCondition {
             operator: operator.to_string(),
-            value: value.to_string(),
+            value: Some(value.to_string()),
             property: Some("foo".to_string()),
         };
         assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
@@ -517,7 +521,7 @@ mod tests {
         };
         let segment_condition = SegmentCondition {
             operator: constants::MODULO.to_string(),
-            value: value.to_string(),
+            value: Some(value.to_string()),
             property: Some("foo".to_string()),
         };
         assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
