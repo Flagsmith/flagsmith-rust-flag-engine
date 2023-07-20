@@ -17,3 +17,4 @@ pub const PERCENTAGE_SPLIT: &str = "PERCENTAGE_SPLIT";
 pub const MODULO: &str = "MODULO";
 pub const IS_SET: &str = "IS_SET";
 pub const IS_NOT_SET: &str = "IS_NOT_SET";
+pub const IN: &str = "IN";

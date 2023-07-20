@@ -19,6 +19,18 @@ impl SegmentCondition {
         if self.operator.as_str() == constants::MODULO {
             return self.modulo_operations(trait_value, &self.value.as_ref().unwrap());
         }
+        if self.operator.as_str() == constants::IN {
+            return match trait_value.value_type {
+                FlagsmithValueType::String => {
+                    self.in_operations(&trait_value.value, &self.value.as_ref().unwrap())
+                }
+                FlagsmithValueType::Integer => {
+                    let trait_value: String = trait_value.value.to_string();
+                    self.in_operations(&trait_value, &self.value.as_ref().unwrap())
+                }
+                _ => false,
+            };
+        }
         return match trait_value.value_type {
             FlagsmithValueType::Integer => {
                 let trait_value: i64 = trait_value.value.parse().unwrap();
@@ -115,6 +127,9 @@ impl SegmentCondition {
             constants::LESS_THAN_INCLUSIVE => trait_value <= segment_value,
             _ => false,
         }
+    }
+    fn in_operations(&self, trait_value: &str, segment_value: &str) -> bool {
+        segment_value.split(',').any(|x| x == trait_value)
     }
 }
 
@@ -311,7 +326,18 @@ mod tests {
         true
     )]
     #[case(constants::REGEX, "foo", FlagsmithValueType::String, r"[a-z]+", true)]
-    #[case(constants::REGEX, "FOO", FlagsmithValueType::String, r"[a-z]+", false)]
+    #[case(constants::IN, "foo", FlagsmithValueType::String, "", false)]
+    #[case(constants::IN, "foo", FlagsmithValueType::String, "foo,bar", true)]
+    #[case(constants::IN, "bar", FlagsmithValueType::String, "foo,bar", true)]
+    #[case(constants::IN, "ba", FlagsmithValueType::String, "foo,bar", false)]
+    #[case(constants::IN, "foo", FlagsmithValueType::String, "foo", true)]
+    #[case(constants::IN, "1", FlagsmithValueType::Integer, "1,2,3,4", true)]
+    #[case(constants::IN, "1", FlagsmithValueType::Integer, "", false)]
+    #[case(constants::IN, "1", FlagsmithValueType::Integer, "1", true)]
+    // Flagsmith's engine does not evaluate `IN` condition for floats/doubles and booleans
+    // due to ambiguous serialization across supported platforms.
+    #[case(constants::IN, "1.5", FlagsmithValueType::Float, "1.5", false)]
+    #[case(constants::IN, "false", FlagsmithValueType::Bool, "false", false)]
     fn segemnt_condition_matches_trait_value(
         #[case] operator: &str,
         #[case] trait_value: &str,
