@@ -19,7 +19,11 @@ pub struct Identity {
 
     #[serde(with = "datetime")]
     pub created_date: DateTime<Utc>,
+
+    #[serde(default)]
     pub identity_features: Vec<features::FeatureState>,
+
+    #[serde(default)]
     pub identity_traits: Vec<Trait>,
 
     #[serde(default = "utils::get_uuid")]

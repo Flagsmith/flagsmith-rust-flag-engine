@@ -44,7 +44,10 @@ pub struct FeatureState {
 
     #[serde(default = "utils::get_uuid")]
     pub featurestate_uuid: String,
+
+    #[serde(default)]
     pub multivariate_feature_state_values: Vec<MultivariateFeatureStateValue>,
+
     #[serde(rename = "feature_state_value")]
     value: FlagsmithValue,
 }
