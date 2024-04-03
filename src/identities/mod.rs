@@ -12,7 +12,7 @@ pub struct Trait {
     pub trait_value: FlagsmithValue,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Identity {
     pub identifier: String,
     pub environment_api_key: String,

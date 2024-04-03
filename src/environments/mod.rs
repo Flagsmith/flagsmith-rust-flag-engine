@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::features;
+use super::identities;
 use super::projects;
 use super::utils::datetime;
 pub mod builders;
@@ -12,6 +13,7 @@ pub struct Environment {
     pub api_key: String,
     pub project: projects::Project,
     pub feature_states: Vec<features::FeatureState>,
+    pub identity_overrides: Option<Vec<identities::Identity>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
