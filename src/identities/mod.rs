@@ -12,14 +12,18 @@ pub struct Trait {
     pub trait_value: FlagsmithValue,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Identity {
     pub identifier: String,
     pub environment_api_key: String,
 
     #[serde(with = "datetime")]
     pub created_date: DateTime<Utc>,
+
+    #[serde(default)]
     pub identity_features: Vec<features::FeatureState>,
+
+    #[serde(default)]
     pub identity_traits: Vec<Trait>,
 
     #[serde(default = "utils::get_uuid")]

@@ -146,6 +146,8 @@ pub struct Segment {
     pub id: u32,
     pub name: String,
     pub rules: Vec<SegmentRule>,
+
+    #[serde(default)]
     pub feature_states: Vec<features::FeatureState>,
 }
 
