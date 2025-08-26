@@ -1,5 +1,25 @@
+# Changelog
+
+## [0.4.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.4.0...v0.4.1) (2025-08-26)
+
+
+### Bug Fixes
+
+* **ci:** No `.release-please-manifest.json` present ([#18](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/18)) ([b20a9b0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/b20a9b01fbe4db7fa0fd869218fd6892e31c9b31))
+
+
+### CI
+
+* add release please ([#15](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/15)) ([2f17b1b](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/2f17b1b873ab65200bdf5df147ebf852c10e5c76))
+
+
+### Other
+
+* add root CODEOWNERS ([#22](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/22)) ([5402536](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/5402536391dca2e05d09bc49304d5d4b4bcb217f))
+* versioned test data ([#17](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/17)) ([5459ba0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/5459ba0cc1f3c9f2d831da8b812436eb91a64589))
+
 <a id="v0.4.0"></a>
-# [v0.4.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.4.0) - 2024-04-04
+## [v0.4.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.4.0) - 2024-04-04
 
 ## What's Changed
 * feat: Add identity overrides to Environment model by [@khvn26](https://github.com/khvn26) in [#12](https://github.com/Flagsmith/flagsmith-rust-flag-engine/pull/12)
@@ -11,7 +31,7 @@
 
 
 <a id="v0.3.0"></a>
-# [v0.3.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.3.0) - 2023-07-20
+## [v0.3.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.3.0) - 2023-07-20
 
 ## What's Changed
 * feat: implement the `IN` operator by [@khvn26](https://github.com/khvn26) in [#9](https://github.com/Flagsmith/flagsmith-rust-flag-engine/pull/9)
@@ -25,7 +45,7 @@
 
 
 <a id="v0.2.0"></a>
-# [v0.2.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.2.0) - 2022-10-20
+## [v0.2.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.2.0) - 2022-10-20
 
 ## What's Changed
 * feat(modulo): Add modulo operator by [@gagantrivedi](https://github.com/gagantrivedi) in [#6](https://github.com/Flagsmith/flagsmith-rust-flag-engine/pull/6)
@@ -38,7 +58,7 @@
 
 
 <a id="v0.1.1"></a>
-# [v0.1.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.1.1) - 2022-05-27
+## [v0.1.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/releases/tag/v0.1.1) - 2022-05-27
 
 ## What's Changed
 * Implement flag engine v0.1.0 by [@gagantrivedi](https://github.com/gagantrivedi) in [#1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/pull/1)
