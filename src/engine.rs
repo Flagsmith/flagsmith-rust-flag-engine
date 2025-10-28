@@ -1,213 +1,196 @@
-use super::environments;
-use super::error;
-use super::features;
-use super::identities;
-use super::segments::evaluator;
-use crate::features::Feature;
-use crate::features::FeatureState;
+use crate::engine_eval::context::{EngineEvaluationContext, FeatureContext};
+use crate::engine_eval::result::{EvaluationResult, FlagResult, SegmentResult};
+use crate::engine_eval::segment_evaluator::is_context_in_segment;
+use crate::utils::hashing;
 use std::collections::HashMap;
 
-//Returns a vector of feature states for a given environment
-pub fn get_environment_feature_states(
-    environment: environments::Environment,
-) -> Vec<features::FeatureState> {
-    if environment.project.hide_disabled_flags {
-        return environment
-            .feature_states
-            .iter()
-            .filter(|fs| fs.enabled)
-            .map(|fs| fs.clone())
-            .collect();
-    }
-    return environment.feature_states;
+/// Holds a feature context with its associated segment name for priority comparison
+struct FeatureContextWithSegment {
+    feature_context: FeatureContext,
+    segment_name: String,
 }
 
-// Returns a specific feature state for a given feature_name in a given environment
-// If exists else returns a FeatureStateNotFound error
-pub fn get_environment_feature_state(
-    environment: environments::Environment,
-    feature_name: &str,
-) -> Result<features::FeatureState, error::Error> {
-    let fs = environment
-        .feature_states
-        .iter()
-        .filter(|fs| fs.feature.name == feature_name)
-        .next()
-        .ok_or(error::Error::new(error::ErrorKind::FeatureStateNotFound));
-    return Ok(fs?.clone());
+/// Helper to get priority or default
+fn get_priority_or_default(priority: Option<f64>) -> f64 {
+    priority.unwrap_or(f64::INFINITY) // Weakest possible priority
 }
 
-// Returns a vector of feature state models based on the environment, any matching
-// segments and any specific identity overrides
-pub fn get_identity_feature_states(
-    environment: &environments::Environment,
-    identity: &identities::Identity,
-    override_traits: Option<&Vec<identities::Trait>>,
-) -> Vec<features::FeatureState> {
-    let feature_states =
-        get_identity_feature_states_map(environment, identity, override_traits).into_values();
-    if environment.project.hide_disabled_flags {
-        return feature_states.filter(|fs| fs.enabled).collect();
-    }
-    return feature_states.collect();
-}
+/// Gets matching segments and their overrides
+fn get_matching_segments_and_overrides(
+    ec: &EngineEvaluationContext,
+) -> (
+    Vec<SegmentResult>,
+    HashMap<String, FeatureContextWithSegment>,
+) {
+    let mut segments = Vec::new();
+    let mut segment_feature_contexts: HashMap<String, FeatureContextWithSegment> = HashMap::new();
 
-// Returns a specific feature state based on the environment, any matching
-// segments and any specific identity overrides
-// If exists else returns a FeatureStateNotFound error
-pub fn get_identity_feature_state(
-    environment: &environments::Environment,
-    identity: &identities::Identity,
-    feature_name: &str,
-    override_traits: Option<&Vec<identities::Trait>>,
-) -> Result<features::FeatureState, error::Error> {
-    let feature_states =
-        get_identity_feature_states_map(environment, identity, override_traits).into_values();
-    let fs = feature_states
-        .filter(|fs| fs.feature.name == feature_name)
-        .next()
-        .ok_or(error::Error::new(error::ErrorKind::FeatureStateNotFound));
+    // Process segments
+    for segment_context in ec.segments.values() {
+        if !is_context_in_segment(ec, segment_context) {
+            continue;
+        }
 
-    return Ok(fs?.clone());
-}
+        // Add segment to results
+        segments.push(SegmentResult {
+            name: segment_context.name.clone(),
+            metadata: segment_context.metadata.clone(),
+        });
 
-fn get_identity_feature_states_map(
-    environment: &environments::Environment,
-    identity: &identities::Identity,
-    override_traits: Option<&Vec<identities::Trait>>,
-) -> HashMap<Feature, FeatureState> {
-    let mut feature_states: HashMap<Feature, FeatureState> = HashMap::new();
+        // Process segment overrides
+        for override_fc in &segment_context.overrides {
+            let feature_name = &override_fc.name;
 
-    // Get feature states from the environment
-    for fs in environment.feature_states.clone() {
-        feature_states.insert(fs.feature.clone(), fs);
-    }
+            // Check if we should update the segment feature context
+            let should_update = if let Some(existing) = segment_feature_contexts.get(feature_name) {
+                let existing_priority = get_priority_or_default(existing.feature_context.priority);
+                let override_priority = get_priority_or_default(override_fc.priority);
+                override_priority < existing_priority
+            } else {
+                true
+            };
 
-    // Override with any feature states defined by matching segments
-    let identity_segments =
-        evaluator::get_identity_segments(environment, identity, override_traits);
-    for matching_segments in identity_segments {
-        for feature_state in matching_segments.feature_states {
-            let existing = feature_states.get(&feature_state.feature);
-            if existing.is_some() {
-                if existing.unwrap().is_higher_segment_priority(&feature_state) {
-                    continue;
-                }
+            if should_update {
+                segment_feature_contexts.insert(
+                    feature_name.clone(),
+                    FeatureContextWithSegment {
+                        feature_context: override_fc.clone(),
+                        segment_name: segment_context.name.clone(),
+                    },
+                );
             }
-            feature_states.insert(feature_state.feature.clone(), feature_state);
         }
     }
-    // Override with any feature states defined directly the identity
-    for feature_state in identity.identity_features.clone() {
-        feature_states.insert(feature_state.feature.clone(), feature_state);
+
+    (segments, segment_feature_contexts)
+}
+
+/// Gets flag results from feature contexts and segment overrides
+fn get_flag_results(
+    ec: &EngineEvaluationContext,
+    segment_feature_contexts: &HashMap<String, FeatureContextWithSegment>,
+) -> HashMap<String, FlagResult> {
+    let mut flags = HashMap::new();
+
+    // Get identity key if identity exists
+    // If identity key is not provided, construct it from environment key and identifier
+    let identity_key: Option<String> = ec.identity.as_ref().map(|i| {
+        if i.key.is_empty() {
+            format!("{}_{}", ec.environment.key, i.identifier)
+        } else {
+            i.key.clone()
+        }
+    });
+
+    // Process all features
+    for feature_context in ec.features.values() {
+        // Check if we have a segment override for this feature
+        if let Some(segment_fc) = segment_feature_contexts.get(&feature_context.name) {
+            // Use segment override
+            let fc = &segment_fc.feature_context;
+            let reason = format!("TARGETING_MATCH; segment={}", segment_fc.segment_name);
+            flags.insert(
+                feature_context.name.clone(),
+                FlagResult {
+                    enabled: fc.enabled,
+                    name: fc.name.clone(),
+                    reason,
+                    value: fc.value.clone(),
+                    metadata: fc.metadata.clone(),
+                },
+            );
+        } else {
+            // Use default feature context
+            let flag_result =
+                get_flag_result_from_feature_context(feature_context, identity_key.as_ref());
+            flags.insert(feature_context.name.clone(), flag_result);
+        }
     }
-    return feature_states;
+
+    flags
+}
+
+pub fn get_evaluation_result(ec: &EngineEvaluationContext) -> EvaluationResult {
+    // Process segments
+    let (segments, segment_feature_contexts) = get_matching_segments_and_overrides(ec);
+
+    // Get flag results
+    let flags = get_flag_results(ec, &segment_feature_contexts);
+
+    EvaluationResult { flags, segments }
+}
+
+/// Creates a FlagResult from a FeatureContext
+fn get_flag_result_from_feature_context(
+    feature_context: &FeatureContext,
+    identity_key: Option<&String>,
+) -> FlagResult {
+    let mut reason = "DEFAULT".to_string();
+    let mut value = feature_context.value.clone();
+
+    // Handle multivariate features
+    if !feature_context.variants.is_empty()
+        && identity_key.is_some()
+        && !feature_context.key.is_empty()
+    {
+        // Sort variants by priority (lower priority value = higher priority)
+        let mut sorted_variants = feature_context.variants.clone();
+        sorted_variants.sort_by(|a, b| {
+            let pa = get_priority_or_default(a.priority);
+            let pb = get_priority_or_default(b.priority);
+            pa.partial_cmp(&pb).unwrap()
+        });
+
+        // Calculate hash percentage for the identity and feature combination
+        let object_ids = vec![feature_context.key.as_str(), identity_key.unwrap().as_str()];
+        let hash_percentage = hashing::get_hashed_percentage_for_object_ids(object_ids, 1);
+
+        // Select variant based on weighted distribution
+        let mut cumulative_weight = 0.0;
+        for variant in &sorted_variants {
+            cumulative_weight += variant.weight;
+            if (hash_percentage as f64) <= cumulative_weight {
+                value = variant.value.clone();
+                reason = format!("SPLIT; weight={}", variant.weight);
+                break;
+            }
+        }
+    }
+
+    FlagResult {
+        enabled: feature_context.enabled,
+        name: feature_context.name.clone(),
+        value,
+        reason,
+        metadata: feature_context.metadata.clone(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    static IDENTITY_JSON: &str = r#"{
-            "identifier": "test_user",
-            "environment_api_key": "test_api_key",
-            "created_date": "2022-03-02T12:31:05.309861",
-            "identity_features": [],
-            "identity_traits": [],
-            "identity_uuid":""
-        }"#;
-    static ENVIRONMENT_JSON: &str = r#"
-        {
- "api_key": "test_key",
- "project": {
-  "name": "Test project",
-  "organisation": {
-   "feature_analytics": false,
-   "name": "Test Org",
-   "id": 1,
-   "persist_trait_data": true,
-   "stop_serving_flags": false
-  },
-  "id": 1,
-  "hide_disabled_flags": true,
-  "segments": []
- },
- "segment_overrides": [],
- "id": 1,
- "feature_states": [
-  {
-   "multivariate_feature_state_values": [],
-   "feature_state_value": true,
-   "django_id": 1,
-   "feature": {
-    "name": "feature1",
-    "type": null,
-    "id": 1
-   },
-   "enabled": false
-  },
-  {
-   "multivariate_feature_state_values": [],
-   "feature_state_value": null,
-   "django_id": 2,
-   "feature": {
-    "name": "feature_2",
-    "type": null,
-    "id": 2
-   },
-   "enabled": true
-  }
- ]
-}"#;
+    use crate::engine_eval::context::EnvironmentContext;
 
     #[test]
-    fn get_environment_feature_states_only_return_enabled_fs_if_hide_disabled_flags_is_true() {
-        let environment: environments::Environment =
-            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
-
-        let environment_feature_states = get_environment_feature_states(environment);
-        assert_eq!(environment_feature_states.len(), 1);
-        assert_eq!(environment_feature_states[0].django_id.unwrap(), 2);
+    fn test_get_priority_or_default() {
+        assert_eq!(get_priority_or_default(Some(1.0)), 1.0);
+        assert_eq!(get_priority_or_default(None), f64::INFINITY);
     }
 
     #[test]
-    fn get_environment_feature_state_returns_correct_feature_state() {
-        let environment: environments::Environment =
-            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
-        let feature_name = "feature_2";
-        let feature_state = get_environment_feature_state(environment, feature_name).unwrap();
-        assert_eq!(feature_state.feature.name, feature_name)
-    }
+    fn test_get_evaluation_result_empty_context() {
+        let ec = EngineEvaluationContext {
+            environment: EnvironmentContext {
+                key: "test".to_string(),
+                name: "test".to_string(),
+            },
+            features: HashMap::new(),
+            segments: HashMap::new(),
+            identity: None,
+        };
 
-    #[test]
-    fn get_environment_feature_state_returns_error_if_feature_state_does_not_exists() {
-        let environment: environments::Environment =
-            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
-        let feature_name = "feature_that_does_not_exists";
-        let err = get_environment_feature_state(environment, feature_name)
-            .err()
-            .unwrap();
-        assert_eq!(err.kind, error::ErrorKind::FeatureStateNotFound)
-    }
-
-    #[test]
-    fn get_identity_feature_state_returns_correct_feature_state() {
-        let environment: environments::Environment =
-            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
-        let feature_name = "feature_2";
-        let identity: identities::Identity = serde_json::from_str(IDENTITY_JSON).unwrap();
-        let feature_state =
-            get_identity_feature_state(&environment, &identity, feature_name, None).unwrap();
-        assert_eq!(feature_state.feature.name, feature_name)
-    }
-    #[test]
-    fn get_identity_feature_state_returns_error_if_feature_state_does_not_exists() {
-        let environment: environments::Environment =
-            serde_json::from_str(ENVIRONMENT_JSON).unwrap();
-        let feature_name = "feature_that_does_not_exists";
-        let identity: identities::Identity = serde_json::from_str(IDENTITY_JSON).unwrap();
-        let err = get_identity_feature_state(&environment, &identity, feature_name, None)
-            .err()
-            .unwrap();
-        assert_eq!(err.kind, error::ErrorKind::FeatureStateNotFound)
+        let result = get_evaluation_result(&ec);
+        assert_eq!(result.flags.len(), 0);
+        assert_eq!(result.segments.len(), 0);
     }
 }
