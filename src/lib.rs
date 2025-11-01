@@ -9,3 +9,7 @@ pub mod projects;
 pub mod segments;
 pub mod types;
 pub mod utils;
+
+// Python bindings - only compiled when the "python" feature is enabled
+#[cfg(feature = "python")]
+pub mod python;

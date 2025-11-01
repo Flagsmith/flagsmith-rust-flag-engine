@@ -10,7 +10,13 @@ keywords = ["Flagsmith", "feature-flag", "remote-config", "flag-engine"]
 categories = ["config", "api-bindings"]
 maintenance = { status = "actively-developed" }
 
+[lib]
+name = "flagsmith_flag_engine_rust"
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"], optional = true }
+pythonize = { version = "0.22", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_json_path = "0.7"
@@ -26,3 +32,7 @@ sha2 = "0.10"
 [dev-dependencies]
 rstest = "0.12.0"
 json_comments = "0.2"
+
+[features]
+default = []
+python = ["pyo3", "pythonize"]

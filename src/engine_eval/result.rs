@@ -30,8 +30,8 @@ pub struct FlagResult {
     pub value: FlagsmithValue,
 
     /// Metadata about the feature.
-    #[serde(default)]
-    pub metadata: FeatureMetadata,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<FeatureMetadata>,
 }
 
 /// Represents a segment that matched during evaluation.
@@ -41,6 +41,6 @@ pub struct SegmentResult {
     pub name: String,
 
     /// Metadata about the segment.
-    #[serde(default)]
-    pub metadata: SegmentMetadata,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<SegmentMetadata>,
 }

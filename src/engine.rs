@@ -1,4 +1,6 @@
-use crate::engine_eval::context::{EngineEvaluationContext, FeatureContext};
+use crate::engine_eval::context::{
+    EngineEvaluationContext, FeatureContext, FeatureMetadata, SegmentMetadata,
+};
 use crate::engine_eval::result::{EvaluationResult, FlagResult, SegmentResult};
 use crate::engine_eval::segment_evaluator::is_context_in_segment;
 use crate::utils::hashing;
@@ -13,6 +15,24 @@ struct FeatureContextWithSegment {
 /// Helper to get priority or default
 fn get_priority_or_default(priority: Option<f64>) -> f64 {
     priority.unwrap_or(f64::INFINITY) // Weakest possible priority
+}
+
+/// Convert FeatureMetadata to Option, returning None if it's the default value
+fn feature_metadata_to_option(metadata: &FeatureMetadata) -> Option<FeatureMetadata> {
+    if metadata.feature_id == 0 {
+        None
+    } else {
+        Some(metadata.clone())
+    }
+}
+
+/// Convert SegmentMetadata to Option, returning None if it's the default value
+fn segment_metadata_to_option(metadata: &SegmentMetadata) -> Option<SegmentMetadata> {
+    if metadata.segment_id.is_none() && metadata.source.is_none() {
+        None
+    } else {
+        Some(metadata.clone())
+    }
 }
 
 /// Gets matching segments and their overrides
@@ -34,7 +54,7 @@ fn get_matching_segments_and_overrides(
         // Add segment to results
         segments.push(SegmentResult {
             name: segment_context.name.clone(),
-            metadata: segment_context.metadata.clone(),
+            metadata: segment_metadata_to_option(&segment_context.metadata),
         });
 
         // Process segment overrides
@@ -96,7 +116,7 @@ fn get_flag_results(
                     name: fc.name.clone(),
                     reason,
                     value: fc.value.clone(),
-                    metadata: fc.metadata.clone(),
+                    metadata: feature_metadata_to_option(&fc.metadata),
                 },
             );
         } else {
@@ -162,7 +182,7 @@ fn get_flag_result_from_feature_context(
         name: feature_context.name.clone(),
         value,
         reason,
-        metadata: feature_context.metadata.clone(),
+        metadata: feature_metadata_to_option(&feature_context.metadata),
     }
 }
 
