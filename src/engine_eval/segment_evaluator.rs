@@ -31,10 +31,10 @@ fn context_matches_segment_rule(
     segment_key: &str,
 ) -> bool {
     // Check conditions if present
-    if !rule.conditions.is_empty() {
-        if !matches_conditions_by_rule_type(ec, &rule.conditions, &rule.rule_type, segment_key) {
-            return false;
-        }
+    if !rule.conditions.is_empty()
+        && !matches_conditions_by_rule_type(ec, &rule.conditions, &rule.rule_type, segment_key)
+    {
+        return false;
     }
 
     // Check nested rules
@@ -305,8 +305,7 @@ fn compare_float(operator: &ConditionOperator, trait_value: &str, condition_valu
 /// Compares string values, with special handling for semver
 fn compare_string(operator: &ConditionOperator, trait_value: &str, condition_value: &str) -> bool {
     // Check for semver comparison
-    if condition_value.ends_with(":semver") {
-        let version_str = &condition_value[..condition_value.len() - 7];
+    if let Some(version_str) = condition_value.strip_suffix(":semver") {
         if let Ok(condition_version) = Version::parse(version_str) {
             return evaluate_semver(operator, trait_value, &condition_version);
         }

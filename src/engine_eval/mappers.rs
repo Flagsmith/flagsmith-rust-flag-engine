@@ -219,7 +219,7 @@ fn map_identity_overrides_to_segments(identities: &[Identity]) -> HashMap<String
         // Group identifiers by their overrides
         features_to_identifiers
             .entry(overrides_hash.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(identity.identifier.clone());
 
         overrides_key_to_list.insert(overrides_hash, overrides);
