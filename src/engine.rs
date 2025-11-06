@@ -86,23 +86,18 @@ fn get_flag_results(
     for feature_context in ec.features.values() {
         // Check if we have a segment override for this feature
         if let Some(segment_fc) = segment_feature_contexts.get(&feature_context.name) {
-            // Use segment override
+            // Use segment override with multivariate evaluation
             let fc = &segment_fc.feature_context;
             let reason = format!("TARGETING_MATCH; segment={}", segment_fc.segment_name);
-            flags.insert(
-                feature_context.name.clone(),
-                FlagResult {
-                    enabled: fc.enabled,
-                    name: fc.name.clone(),
-                    reason,
-                    value: fc.value.clone(),
-                    metadata: fc.metadata.clone(),
-                },
-            );
+            let flag_result = get_flag_result_from_feature_context(fc, identity_key.as_ref(), reason);
+            flags.insert(feature_context.name.clone(), flag_result);
         } else {
             // Use default feature context
-            let flag_result =
-                get_flag_result_from_feature_context(feature_context, identity_key.as_ref());
+            let flag_result = get_flag_result_from_feature_context(
+                feature_context,
+                identity_key.as_ref(),
+                "DEFAULT".to_string(),
+            );
             flags.insert(feature_context.name.clone(), flag_result);
         }
     }
@@ -124,8 +119,9 @@ pub fn get_evaluation_result(ec: &EngineEvaluationContext) -> EvaluationResult {
 fn get_flag_result_from_feature_context(
     feature_context: &FeatureContext,
     identity_key: Option<&String>,
+    default_reason: String,
 ) -> FlagResult {
-    let mut reason = "DEFAULT".to_string();
+    let mut reason = default_reason;
     let mut value = feature_context.value.clone();
 
     // Handle multivariate features
