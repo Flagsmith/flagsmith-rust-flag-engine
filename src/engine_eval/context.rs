@@ -87,21 +87,77 @@ pub enum ConditionOperator {
     IsNotSet,
 }
 
-// Helper function to deserialize value that can be a string or array
-fn deserialize_condition_value<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde_json::Value;
-    let value: Value = serde::Deserialize::deserialize(deserializer)?;
-    Ok(match value {
-        Value::String(s) => s,
-        Value::Array(_) | Value::Object(_) | Value::Number(_) | Value::Bool(_) => {
-            // Serialize non-string values back to JSON string
-            serde_json::to_string(&value).unwrap_or_default()
+/// Represents a condition value that can be either a single string or an array of strings.
+#[derive(Clone, Debug, Serialize)]
+#[serde(untagged)]
+pub enum ConditionValue {
+    /// Multiple values as an array
+    Multiple(Vec<String>),
+    /// Single value as a string
+    Single(String),
+}
+
+impl<'de> serde::Deserialize<'de> for ConditionValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde_json::Value;
+        let value: Value = serde::Deserialize::deserialize(deserializer)?;
+
+        match value {
+            // If it's already an array, use Multiple
+            Value::Array(arr) => {
+                let strings: Vec<String> = arr
+                    .into_iter()
+                    .map(|v| match v {
+                        Value::String(s) => s,
+                        _ => v.to_string(),
+                    })
+                    .collect();
+                Ok(ConditionValue::Multiple(strings))
+            }
+            // If it's a string, check if it's a JSON array string
+            Value::String(s) => {
+                if s.trim().starts_with('[') {
+                    // Try to parse as JSON array
+                    if let Ok(arr) = serde_json::from_str::<Vec<String>>(&s) {
+                        return Ok(ConditionValue::Multiple(arr));
+                    }
+                }
+                // Otherwise treat as single string
+                Ok(ConditionValue::Single(s))
+            }
+            // For other types, convert to string
+            _ => Ok(ConditionValue::Single(value.to_string())),
         }
-        Value::Null => String::new(),
-    })
+    }
+}
+
+impl ConditionValue {
+    /// Get the value as a single string (joins arrays with comma)
+    pub fn as_string(&self) -> String {
+        match self {
+            ConditionValue::Single(s) => s.clone(),
+            ConditionValue::Multiple(arr) => arr.join(","),
+        }
+    }
+
+    /// Get values as a Vec (splits single strings by comma, or returns array as-is)
+    pub fn as_vec(&self) -> Vec<String> {
+        match self {
+            ConditionValue::Single(s) => s.split(',').map(|s| s.trim().to_string()).collect(),
+            ConditionValue::Multiple(arr) => arr.clone(),
+        }
+    }
+
+    /// Check if value contains a string (for string-based IN operator)
+    pub fn contains_string(&self, search: &str) -> bool {
+        match self {
+            ConditionValue::Single(s) => s.split(',').any(|v| v.trim() == search),
+            ConditionValue::Multiple(arr) => arr.iter().any(|v| v == search),
+        }
+    }
 }
 
 /// Represents a condition for segment rule evaluation.
@@ -111,9 +167,8 @@ pub struct Condition {
     pub operator: ConditionOperator,
     /// The property to evaluate (can be a JSONPath expression starting with $.).
     pub property: String,
-    /// The value to compare against (can be a string or serialized JSON).
-    #[serde(deserialize_with = "deserialize_condition_value")]
-    pub value: String,
+    /// The value to compare against (can be a string or array of strings).
+    pub value: ConditionValue,
 }
 
 /// Segment rule types.

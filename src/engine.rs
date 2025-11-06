@@ -89,7 +89,8 @@ fn get_flag_results(
             // Use segment override with multivariate evaluation
             let fc = &segment_fc.feature_context;
             let reason = format!("TARGETING_MATCH; segment={}", segment_fc.segment_name);
-            let flag_result = get_flag_result_from_feature_context(fc, identity_key.as_ref(), reason);
+            let flag_result =
+                get_flag_result_from_feature_context(fc, identity_key.as_ref(), reason);
             flags.insert(feature_context.name.clone(), flag_result);
         } else {
             // Use default feature context

@@ -101,7 +101,7 @@ fn context_matches_condition(
         ConditionOperator::IsSet => context_value.is_some(),
         _ => {
             if let Some(ref ctx_val) = context_value {
-                parse_and_match(&condition.operator, ctx_val, &condition.value)
+                parse_and_match(&condition.operator, ctx_val, &condition.value.as_string())
             } else {
                 false
             }
@@ -189,7 +189,7 @@ fn match_percentage_split(
     segment_key: &str,
     context_value: Option<&FlagsmithValue>,
 ) -> bool {
-    let float_value = match condition.value.parse::<f64>() {
+    let float_value = match condition.value.as_string().parse::<f64>() {
         Ok(v) => v,
         Err(_) => return false,
     };
@@ -224,27 +224,8 @@ fn match_in_operator(condition: &Condition, context_value: Option<&FlagsmithValu
 
     let trait_value = &ctx_value.value;
 
-    // Check if the value is in JSON array format (starts with '[')
-    if condition.value.trim().starts_with('[') {
-        // Try to parse as JSON array
-        if let Ok(array) = serde_json::from_str::<Vec<serde_json::Value>>(&condition.value) {
-            return array.iter().any(|v| {
-                if let Some(s) = v.as_str() {
-                    s == trait_value
-                } else if let Some(n) = v.as_i64() {
-                    n.to_string() == *trait_value
-                } else if let Some(n) = v.as_f64() {
-                    n.to_string() == *trait_value
-                } else {
-                    false
-                }
-            });
-        }
-    }
-
-    // Fall back to comma-separated format
-    let values: Vec<&str> = condition.value.split(',').collect();
-    values.contains(&trait_value.as_str())
+    // Use the ConditionValue's contains_string method for simple string matching
+    condition.value.contains_string(trait_value)
 }
 
 /// Parses and matches values based on the operator using type-aware strategy

@@ -129,7 +129,7 @@ fn map_segment_rule_to_rule(rule: &OldSegmentRule) -> SegmentRule {
         .map(|c| Condition {
             operator: map_operator(&c.operator),
             property: c.property.clone().unwrap_or_default(),
-            value: c.value.clone().unwrap_or_default(),
+            value: super::context::ConditionValue::Single(c.value.clone().unwrap_or_default()),
         })
         .collect();
 
@@ -245,7 +245,7 @@ fn map_identity_overrides_to_segments(identities: &[Identity]) -> HashMap<String
                 conditions: vec![Condition {
                     operator: ConditionOperator::In,
                     property: "$.identity.identifier".to_string(),
-                    value: identifiers.join(","),
+                    value: super::context::ConditionValue::Multiple(identifiers),
                 }],
                 rules: vec![],
             }],
