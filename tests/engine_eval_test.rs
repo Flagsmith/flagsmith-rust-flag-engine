@@ -12,11 +12,6 @@ fn test_engine_evaluation() {
     let test_dir = "tests/engine_tests/engine-test-data/test_cases";
     let test_files = fs::read_dir(test_dir).expect("Failed to read test directory");
 
-    let mut test_count = 0;
-    let mut passed = 0;
-    let mut failed = 0;
-    let mut failed_tests = Vec::new();
-
     for entry in test_files {
         let entry = entry.expect("Failed to read directory entry");
         let path = entry.path();
@@ -31,8 +26,6 @@ fn test_engine_evaluation() {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown");
-
-        test_count += 1;
 
         // Read the test file
         let test_data =
@@ -54,91 +47,31 @@ fn test_engine_evaluation() {
             .expect(&format!("Failed to parse JSON for: {}", test_name));
 
         // Deserialize the context
-        let context_result: Result<EngineEvaluationContext, _> =
-            serde_json::from_value(test_json["context"].clone());
-
-        if context_result.is_err() {
-            println!(
-                "FAIL {}: Failed to deserialize context: {:?}",
-                test_name,
-                context_result.err()
-            );
-            failed += 1;
-            failed_tests.push(test_name.to_string());
-            continue;
-        }
-
-        let context = context_result.unwrap();
+        let context: EngineEvaluationContext = serde_json::from_value(test_json["context"].clone())
+            .unwrap_or_else(|e| panic!("Failed to deserialize context for {}: {:?}", test_name, e));
 
         // Get the evaluation result
         let result = get_evaluation_result(&context);
 
         // Deserialize the expected result
-        let expected_result: Result<EvaluationResult, _> =
-            serde_json::from_value(test_json["result"].clone());
+        let expected: EvaluationResult = serde_json::from_value(test_json["result"].clone())
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Failed to deserialize expected result for {}: {:?}",
+                    test_name, e
+                )
+            });
 
-        if expected_result.is_err() {
-            println!(
-                "FAIL {}: Failed to deserialize expected result: {:?}",
-                test_name,
-                expected_result.err()
-            );
-            failed += 1;
-            failed_tests.push(test_name.to_string());
-            continue;
-        }
-
-        let expected = expected_result.unwrap();
-
-        // Compare results
-        if compare_evaluation_results(&result, &expected, test_name) {
-            passed += 1;
-            println!("PASS {}", test_name);
-        } else {
-            failed += 1;
-            failed_tests.push(test_name.to_string());
-        }
+        // Compare results - panic immediately on mismatch
+        assert_eq!(
+            result.flags, expected.flags,
+            "Flags mismatch in {}",
+            test_name
+        );
+        assert_eq!(
+            result.segments, expected.segments,
+            "Segments mismatch in {}",
+            test_name
+        );
     }
-
-    // Print summary
-    println!("\n========== TEST SUMMARY ==========");
-    println!("Total tests: {}", test_count);
-    println!("Passed: {} ({}%)", passed, (passed * 100) / test_count);
-    println!("Failed: {} ({}%)", failed, (failed * 100) / test_count);
-
-    if !failed_tests.is_empty() {
-        println!("\nFailed tests:");
-        for test in &failed_tests {
-            println!("  - {}", test);
-        }
-    }
-
-    println!("==================================\n");
-
-    // Assert that all tests passed
-    assert_eq!(failed, 0, "{} out of {} tests failed", failed, test_count);
-}
-
-fn compare_evaluation_results(
-    result: &EvaluationResult,
-    expected: &EvaluationResult,
-    test_name: &str,
-) -> bool {
-    // Compare flags - simple equality check
-    if result.flags != expected.flags {
-        println!("FAIL {}: Flags mismatch", test_name);
-        println!("  Expected flags: {:?}", expected.flags);
-        println!("  Actual flags: {:?}", result.flags);
-        return false;
-    }
-
-    // Compare segments - simple equality check
-    if result.segments != expected.segments {
-        println!("FAIL {}: Segments mismatch", test_name);
-        println!("  Expected segments: {:?}", expected.segments);
-        println!("  Actual segments: {:?}", result.segments);
-        return false;
-    }
-
-    true
 }
