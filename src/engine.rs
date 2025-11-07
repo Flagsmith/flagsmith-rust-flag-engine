@@ -25,8 +25,14 @@ fn get_matching_segments_and_overrides(
     let mut segments = Vec::new();
     let mut segment_feature_contexts: HashMap<String, FeatureContextWithSegment> = HashMap::new();
 
-    // Process segments
-    for segment_context in ec.segments.values() {
+    // Sort segment keys for deterministic ordering
+    let mut segment_keys: Vec<_> = ec.segments.keys().collect();
+    segment_keys.sort();
+
+    // Process segments in sorted order
+    for segment_key in segment_keys {
+        let segment_context = &ec.segments[segment_key];
+
         if !is_context_in_segment(ec, segment_context) {
             continue;
         }
