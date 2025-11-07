@@ -159,6 +159,14 @@ fn compare_evaluation_results(
                     );
                     success = false;
                 }
+
+                if actual_flag.reason != expected_flag.reason {
+                    println!(
+                        "FAIL {}: Flag '{}' reason mismatch - got '{}', expected '{}'",
+                        test_name, flag_name, actual_flag.reason, expected_flag.reason
+                    );
+                    success = false;
+                }
             }
         }
     }
