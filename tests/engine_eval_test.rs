@@ -124,63 +124,21 @@ fn compare_evaluation_results(
     expected: &EvaluationResult,
     test_name: &str,
 ) -> bool {
-    let mut success = true;
-
-    // Compare flags
-    if result.flags.len() != expected.flags.len() {
-        println!(
-            "FAIL {}: Flag count mismatch - got {}, expected {}",
-            test_name,
-            result.flags.len(),
-            expected.flags.len()
-        );
-        success = false;
+    // Compare flags - simple equality check
+    if result.flags != expected.flags {
+        println!("FAIL {}: Flags mismatch", test_name);
+        println!("  Expected flags: {:?}", expected.flags);
+        println!("  Actual flags: {:?}", result.flags);
+        return false;
     }
 
-    for (flag_name, expected_flag) in &expected.flags {
-        match result.flags.get(flag_name) {
-            None => {
-                println!("FAIL {}: Missing flag: {}", test_name, flag_name);
-                success = false;
-            }
-            Some(actual_flag) => {
-                if actual_flag.enabled != expected_flag.enabled {
-                    println!(
-                        "FAIL {}: Flag '{}' enabled mismatch - got {}, expected {}",
-                        test_name, flag_name, actual_flag.enabled, expected_flag.enabled
-                    );
-                    success = false;
-                }
-
-                if actual_flag.value != expected_flag.value {
-                    println!(
-                        "FAIL {}: Flag '{}' value mismatch - got {:?}, expected {:?}",
-                        test_name, flag_name, actual_flag.value, expected_flag.value
-                    );
-                    success = false;
-                }
-
-                if actual_flag.reason != expected_flag.reason {
-                    println!(
-                        "FAIL {}: Flag '{}' reason mismatch - got '{}', expected '{}'",
-                        test_name, flag_name, actual_flag.reason, expected_flag.reason
-                    );
-                    success = false;
-                }
-            }
-        }
+    // Compare segments - simple equality check
+    if result.segments != expected.segments {
+        println!("FAIL {}: Segments mismatch", test_name);
+        println!("  Expected segments: {:?}", expected.segments);
+        println!("  Actual segments: {:?}", result.segments);
+        return false;
     }
 
-    // Compare segments
-    if result.segments.len() != expected.segments.len() {
-        println!(
-            "FAIL {}: Segment count mismatch - got {}, expected {}",
-            test_name,
-            result.segments.len(),
-            expected.segments.len()
-        );
-        success = false;
-    }
-
-    success
+    true
 }

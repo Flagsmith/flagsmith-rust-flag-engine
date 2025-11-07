@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents the result of a feature flag evaluation.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct EvaluationResult {
     /// Map of feature names to their evaluated flag results.
     pub flags: HashMap<String, FlagResult>,
@@ -15,7 +15,7 @@ pub struct EvaluationResult {
 }
 
 /// Represents the evaluated result for a single feature flag.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct FlagResult {
     /// Whether the feature is enabled.
     pub enabled: bool,
@@ -35,7 +35,7 @@ pub struct FlagResult {
 }
 
 /// Represents a segment that matched during evaluation.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SegmentResult {
     /// The segment name.
     pub name: String,

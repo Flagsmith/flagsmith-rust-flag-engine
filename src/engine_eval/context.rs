@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Represents metadata information about a feature.
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct FeatureMetadata {
     /// The feature ID.
     #[serde(default)]
@@ -195,7 +195,7 @@ pub struct SegmentRule {
 }
 
 /// Segment metadata.
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct SegmentMetadata {
     /// Segment ID.
     #[serde(skip_serializing_if = "Option::is_none")]
