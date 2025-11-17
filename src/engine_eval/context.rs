@@ -2,6 +2,15 @@ use crate::types::FlagsmithValue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SegmentSource {
+    /// Segment came from the Flagsmith API.
+    Api,
+    /// Segment was created from identity overrides.
+    IdentityOverride,
+}
+
 /// Represents metadata information about a feature.
 #[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
 pub struct FeatureMetadata {
@@ -195,14 +204,22 @@ pub struct SegmentRule {
 }
 
 /// Segment metadata.
-#[derive(Clone, Debug, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SegmentMetadata {
     /// Segment ID.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub segment_id: Option<i32>,
-    /// Source of the segment (api or identity_override).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
+    /// Source of the segment.
+    pub source: SegmentSource,
+}
+
+impl Default for SegmentMetadata {
+    fn default() -> Self {
+        Self {
+            segment_id: None,
+            source: SegmentSource::Api,
+        }
+    }
 }
 
 /// Represents a segment context for feature flag evaluation.

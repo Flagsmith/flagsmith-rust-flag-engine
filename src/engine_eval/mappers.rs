@@ -1,7 +1,7 @@
 use super::context::{
     Condition, ConditionOperator, EngineEvaluationContext, EnvironmentContext, FeatureContext,
     FeatureMetadata, FeatureValue, IdentityContext, SegmentContext, SegmentMetadata, SegmentRule,
-    SegmentRuleType,
+    SegmentRuleType, SegmentSource,
 };
 use crate::environments::Environment;
 use crate::features::{FeatureState, MultivariateFeatureStateValue};
@@ -100,7 +100,7 @@ fn map_segment_to_segment_context(segment: &Segment) -> SegmentContext {
         name: segment.name.clone(),
         metadata: SegmentMetadata {
             segment_id: Some(segment.id as i32),
-            source: Some("api".to_string()),
+            source: SegmentSource::Api,
         },
         overrides: vec![],
         rules: vec![],
@@ -237,7 +237,7 @@ fn map_identity_overrides_to_segments(identities: &[Identity]) -> HashMap<String
             name: "identity_overrides".to_string(),
             metadata: SegmentMetadata {
                 segment_id: None,
-                source: Some("identity_override".to_string()),
+                source: SegmentSource::IdentityOverride,
             },
             overrides: vec![],
             rules: vec![SegmentRule {
