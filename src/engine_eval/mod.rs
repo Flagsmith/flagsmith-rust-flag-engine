@@ -11,7 +11,7 @@ pub mod segment_evaluator;
 pub mod mappers;
 
 // Re-export commonly used types for convenience
-pub use context::{EngineEvaluationContext, FeatureContext, FeatureMetadata};
+pub use context::{EngineEvaluationContext, FeatureContext, FeatureMetadata, SegmentSource};
 pub use mappers::{add_identity_to_context, environment_to_context};
 pub use result::{EvaluationResult, FlagResult, SegmentResult};
 pub use segment_evaluator::is_context_in_segment;
