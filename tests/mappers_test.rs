@@ -190,7 +190,10 @@ fn test_environment_to_context_produces_evaluation_context() {
     assert!(api_segment.rules[0].conditions.is_empty());
     assert_eq!(api_segment.rules[0].rules.len(), 1);
 
-    assert_eq!(api_segment.rules[0].rules[0].rule_type, SegmentRuleType::All);
+    assert_eq!(
+        api_segment.rules[0].rules[0].rule_type,
+        SegmentRuleType::All
+    );
     assert_eq!(api_segment.rules[0].rules[0].conditions.len(), 1);
     assert!(api_segment.rules[0].rules[0].rules.is_empty());
 
@@ -200,7 +203,9 @@ fn test_environment_to_context_produces_evaluation_context() {
         ConditionOperator::Equal
     );
     assert_eq!(
-        api_segment.rules[0].rules[0].conditions[0].value.as_string(),
+        api_segment.rules[0].rules[0].conditions[0]
+            .value
+            .as_string(),
         "bar"
     );
 
@@ -244,7 +249,10 @@ fn test_environment_to_context_produces_evaluation_context() {
         override_segment.overrides[0].value.value,
         "some-overridden-value"
     );
-    assert_eq!(override_segment.overrides[0].priority, Some(f64::NEG_INFINITY));
+    assert_eq!(
+        override_segment.overrides[0].priority,
+        Some(f64::NEG_INFINITY)
+    );
     assert!(override_segment.overrides[0].variants.is_empty());
     assert_eq!(override_segment.overrides[0].metadata.feature_id, 1);
 
