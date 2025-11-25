@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.5.0...v0.5.1) (2025-11-25)
+
+
+### Bug Fixes
+
+* check-context-values-exists-or-return-false ([#28](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/28)) ([579d0e5](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/579d0e5f93ad04b6f1f51894e361f6cc08dc27d9))
+
 ## [0.5.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.4.0...v0.5.0) (2025-11-17)
 
 
