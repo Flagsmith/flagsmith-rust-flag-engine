@@ -182,7 +182,6 @@ fn get_value_from_jsonpath(ec: &EngineEvaluationContext, path: &str) -> Option<F
     }
 }
 
-/// Matches percentage split condition
 fn match_percentage_split(
     ec: &EngineEvaluationContext,
     condition: &Condition,
@@ -194,16 +193,18 @@ fn match_percentage_split(
         Err(_) => return false,
     };
 
-    // Build object IDs based on context
-    let context_str = context_value.map(|v| v.value.clone());
-    let object_ids: Vec<&str> = if let Some(ref ctx_str) = context_str {
-        vec![segment_key, ctx_str.as_str()]
-    } else if let Some(ref identity) = ec.identity {
-        vec![segment_key, &identity.key]
+    let split_key: Option<String> = if condition.property.is_empty() {
+        ec.identity.as_ref().map(|id| id.key.clone())
     } else {
-        return false;
+        context_value.map(|v| v.value.clone())
     };
 
+    let split_key = match split_key {
+        Some(key) => key,
+        None => return false,
+    };
+
+    let object_ids: Vec<&str> = vec![segment_key, &split_key];
     let hash_percentage = hashing::get_hashed_percentage_for_object_ids(object_ids, 1);
     (hash_percentage as f64) <= float_value
 }
