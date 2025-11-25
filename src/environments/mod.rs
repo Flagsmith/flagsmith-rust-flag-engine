@@ -11,6 +11,7 @@ pub mod builders;
 pub struct Environment {
     pub id: u32,
     pub api_key: String,
+    pub name: String,
     pub project: projects::Project,
     pub feature_states: Vec<features::FeatureState>,
 
