@@ -21,7 +21,7 @@ pub fn environment_to_context(environment: Environment) -> EngineEvaluationConte
     let mut ctx = EngineEvaluationContext {
         environment: EnvironmentContext {
             key: environment.api_key.clone(),
-            name: environment.api_key.clone(),
+            name: environment.name.clone(),
         },
         features: HashMap::new(),
         segments: HashMap::new(),
