@@ -1,6 +1,6 @@
 [package]
 name = "flagsmith-flag-engine"
-version = "0.5.1"
+version = "0.6.0"
 authors = ["Gagan Trivedi <gagan.trivedi@flagsmith.com>"]
 edition = "2021"
 description = "This project is the rust clone of flagsmith flag engine: https://github.com/Flagsmith/flagsmith-engine"
