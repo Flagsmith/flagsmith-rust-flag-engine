@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.5.1...v0.6.0) (2026-01-19)
+
+
+### Features
+
+* Add feature_type to FeatureMetadata ([#32](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/32)) ([b8fc3d7](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/b8fc3d787f2e2d5af720320fba717482d0b97d9b))
+
 ## [0.5.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.5.0...v0.5.1) (2025-12-02)
 
 
