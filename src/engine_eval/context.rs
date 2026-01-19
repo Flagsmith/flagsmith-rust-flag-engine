@@ -17,6 +17,13 @@ pub struct FeatureMetadata {
     /// The feature ID.
     #[serde(default)]
     pub feature_id: u32,
+    /// The feature type (e.g., "STANDARD", "MULTIVARIATE").
+    #[serde(default = "default_feature_type")]
+    pub feature_type: String,
+}
+
+fn default_feature_type() -> String {
+    "STANDARD".to_string()
 }
 
 /// Represents a multivariate value for a feature flag.

@@ -9,7 +9,7 @@ pub struct Feature {
     pub id: u32,
     pub name: String,
     #[serde(rename = "type")]
-    feature_type: Option<String>,
+    pub feature_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

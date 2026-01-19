@@ -68,6 +68,11 @@ fn map_feature_state_to_feature_context(fs: &FeatureState) -> FeatureContext {
         variants: map_multivariate_values_to_variants(&fs.multivariate_feature_state_values),
         metadata: FeatureMetadata {
             feature_id: fs.feature.id,
+            feature_type: fs
+                .feature
+                .feature_type
+                .clone()
+                .unwrap_or_else(|| "STANDARD".to_string()),
         },
     };
 
@@ -184,6 +189,7 @@ struct OverrideKey {
     enabled: String,
     feature_value: String,
     feature_id: u32,
+    feature_type: String,
 }
 
 /// Maps identity overrides to segment contexts
@@ -207,6 +213,11 @@ fn map_identity_overrides_to_segments(identities: &[Identity]) -> HashMap<String
                 enabled: fs.enabled.to_string(),
                 feature_value,
                 feature_id: fs.feature.id,
+                feature_type: fs
+                    .feature
+                    .feature_type
+                    .clone()
+                    .unwrap_or_else(|| "STANDARD".to_string()),
             });
         }
 
@@ -263,6 +274,7 @@ fn map_identity_overrides_to_segments(identities: &[Identity]) -> HashMap<String
                 variants: vec![],
                 metadata: FeatureMetadata {
                     feature_id: override_key.feature_id,
+                    feature_type: override_key.feature_type.clone(),
                 },
             };
 
