@@ -51,29 +51,14 @@ fn matches_sub_rules_by_rule_type(
     rule_type: &SegmentRuleType,
     segment_key: &str,
 ) -> bool {
-    for sub_rule in sub_rules {
-        let sub_rule_matches = context_matches_segment_rule(ec, sub_rule, segment_key);
-
-        match rule_type {
-            SegmentRuleType::All => {
-                if !sub_rule_matches {
-                    return false;
-                }
-            }
-            SegmentRuleType::None => {
-                if sub_rule_matches {
-                    return false;
-                }
-            }
-            SegmentRuleType::Any => {
-                if sub_rule_matches {
-                    return true;
-                }
-            }
-        }
+    let mut results = sub_rules
+        .iter()
+        .map(|sr| context_matches_segment_rule(ec, sr, segment_key));
+    match rule_type {
+        SegmentRuleType::All => results.all(|r| r),
+        SegmentRuleType::Any => results.any(|r| r),
+        SegmentRuleType::None => !results.any(|r| r),
     }
-
-    *rule_type != SegmentRuleType::Any
 }
 
 /// Checks if conditions match according to the rule type

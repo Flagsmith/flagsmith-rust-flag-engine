@@ -41,36 +41,34 @@ pub fn evaluate_identity_in_segment(
             .all(|result| result)
 }
 
+fn matches_by_rule_type(rule_type: &str, mut results: impl Iterator<Item = bool>) -> bool {
+    match rule_type {
+        constants::ANY_RULE => results.any(|r| r),
+        constants::ALL_RULE => results.all(|r| r),
+        constants::NONE_RULE => !results.any(|r| r),
+        _ => false,
+    }
+}
+
 fn traits_match_segment_rule(
     identity_traits: &Vec<identities::Trait>,
     rule: &SegmentRule,
     segment_id: &str,
     identity_id: &str,
 ) -> bool {
-    let mut rules_iterator = rule.conditions.iter().map(|condition| {
+    let conditions_iterator = rule.conditions.iter().map(|condition| {
         traits_match_segment_condition(&identity_traits, condition, segment_id, identity_id)
     });
-    let matches_condtion = match rule.segment_rule_type.as_str() {
-        constants::ANY_RULE => rules_iterator.any(|result| result == true),
-        constants::ALL_RULE => rules_iterator.all(|result| result == true),
-        constants::NONE_RULE => !rules_iterator.any(|result| result),
-        _ => false,
-    };
-    if !matches_condtion {
+    if !matches_by_rule_type(rule.segment_rule_type.as_str(), conditions_iterator) {
         return false;
     }
     if rule.rules.is_empty() {
         return true;
     }
-    let mut sub_rules_iterator = rule.rules.iter().map(|sub_rule| {
+    let sub_rules_iterator = rule.rules.iter().map(|sub_rule| {
         traits_match_segment_rule(&identity_traits, sub_rule.as_ref(), segment_id, identity_id)
     });
-    match rule.segment_rule_type.as_str() {
-        constants::ANY_RULE => sub_rules_iterator.any(|result| result),
-        constants::ALL_RULE => sub_rules_iterator.all(|result| result),
-        constants::NONE_RULE => !sub_rules_iterator.any(|result| result),
-        _ => false,
-    }
+    matches_by_rule_type(rule.segment_rule_type.as_str(), sub_rules_iterator)
 }
 
 fn traits_match_segment_condition(
