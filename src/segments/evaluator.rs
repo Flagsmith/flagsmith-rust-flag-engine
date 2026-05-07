@@ -53,17 +53,24 @@ fn traits_match_segment_rule(
     let matches_condtion = match rule.segment_rule_type.as_str() {
         constants::ANY_RULE => rules_iterator.any(|result| result == true),
         constants::ALL_RULE => rules_iterator.all(|result| result == true),
-        constants::NONE_RULE => true,
+        constants::NONE_RULE => !rules_iterator.any(|result| result),
         _ => false,
     };
-    return matches_condtion
-        && rule
-            .rules
-            .iter()
-            .map(|rule| {
-                traits_match_segment_rule(&identity_traits, rule.as_ref(), segment_id, identity_id)
-            })
-            .all(|result| result == true);
+    if !matches_condtion {
+        return false;
+    }
+    if rule.rules.is_empty() {
+        return true;
+    }
+    let mut sub_rules_iterator = rule.rules.iter().map(|sub_rule| {
+        traits_match_segment_rule(&identity_traits, sub_rule.as_ref(), segment_id, identity_id)
+    });
+    match rule.segment_rule_type.as_str() {
+        constants::ANY_RULE => sub_rules_iterator.any(|result| result),
+        constants::ALL_RULE => sub_rules_iterator.all(|result| result),
+        constants::NONE_RULE => !sub_rules_iterator.any(|result| result),
+        _ => false,
+    }
 }
 
 fn traits_match_segment_condition(
