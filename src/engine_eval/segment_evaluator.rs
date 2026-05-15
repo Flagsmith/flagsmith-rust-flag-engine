@@ -37,14 +37,28 @@ fn context_matches_segment_rule(
         return false;
     }
 
-    // Check nested rules
-    for nested_rule in &rule.rules {
-        if !context_matches_segment_rule(ec, nested_rule, segment_key) {
-            return false;
-        }
+    // Check nested rules using rule type
+    if rule.rules.is_empty() {
+        return true;
     }
 
-    true
+    matches_sub_rules_by_rule_type(ec, &rule.rules, &rule.rule_type, segment_key)
+}
+
+fn matches_sub_rules_by_rule_type(
+    ec: &EngineEvaluationContext,
+    sub_rules: &[SegmentRule],
+    rule_type: &SegmentRuleType,
+    segment_key: &str,
+) -> bool {
+    let mut results = sub_rules
+        .iter()
+        .map(|sr| context_matches_segment_rule(ec, sr, segment_key));
+    match rule_type {
+        SegmentRuleType::All => results.all(|r| r),
+        SegmentRuleType::Any => results.any(|r| r),
+        SegmentRuleType::None => !results.any(|r| r),
+    }
 }
 
 /// Checks if conditions match according to the rule type
