@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.6.0...v0.6.1) (2026-07-22)
+
+
+### Bug Fixes
+
+* respect rule type for sub-rules in segment evaluation ([#36](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/36)) ([1bafb07](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/1bafb070a005d7fefa3e377b73f613dfbfebf4d8))
+
+
+### CI
+
+* track engine-test-data semver tags via Renovate ([#37](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/37)) ([ba209c6](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/ba209c6ab88e8ce89e622ab3b6c43e2188449113))
+
+
+### Other
+
+* Remove amannn/action-semantic-pull-request workflow ([#34](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/34)) ([eee20ee](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/eee20ee3f680574d6b26105e9d82fabbfc3e8296))
+
 ## [0.6.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.5.1...v0.6.0) (2026-01-19)
 
 
