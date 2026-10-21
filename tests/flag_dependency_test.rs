@@ -112,3 +112,18 @@ fn test_segment_membership_alone_cannot_read_flags(context: EngineEvaluationCont
     // Then
     assert!(!is_member);
 }
+
+#[rstest]
+fn test_segment_membership_alone_can_read_the_context(
+    #[with(prerequisite_name(), "$.features.prerequisite.enabled")]
+    context: EngineEvaluationContext,
+) {
+    // Given
+    let segment = &context.segments["1"];
+
+    // When
+    let is_member = is_context_in_segment(&context, segment);
+
+    // Then
+    assert!(is_member);
+}
