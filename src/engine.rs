@@ -80,6 +80,7 @@ fn get_flag_results(
     ec: &EngineEvaluationContext,
     segment_feature_contexts: &HashMap<&str, SegmentOverride>,
     identity_key: Option<&String>,
+    resolver: &DependencyResolver,
 ) -> HashMap<String, FlagResult> {
     let mut flags = HashMap::new();
 
@@ -97,7 +98,7 @@ fn get_flag_results(
             let flag_result = get_flag_result_from_feature_context(
                 feature_context,
                 identity_key,
-                "DEFAULT".to_string(),
+                resolver.get_fallback_reason(&feature_context.name),
             );
             flags.insert(feature_context.name.clone(), flag_result);
         }
@@ -123,7 +124,12 @@ pub fn get_evaluation_result(ec: &EngineEvaluationContext) -> EvaluationResult {
     let (segments, segment_feature_contexts) = get_matching_segments_and_overrides(ec, &resolver);
 
     // Get flag results
-    let mut flags = get_flag_results(ec, &segment_feature_contexts, identity_key.as_ref());
+    let mut flags = get_flag_results(
+        ec,
+        &segment_feature_contexts,
+        identity_key.as_ref(),
+        &resolver,
+    );
 
     // Flags resolved for segment conditions take precedence, as only they are guarded against cycles
     flags.extend(resolver.resolved.take());
@@ -216,12 +222,22 @@ impl<'a> DependencyResolver<'a> {
             None => get_flag_result_from_feature_context(
                 feature_context,
                 self.identity_key,
-                "DEFAULT".to_string(),
+                self.get_fallback_reason(feature_name),
             ),
         };
         self.resolved
             .borrow_mut()
             .insert(feature_name.to_string(), flag_result);
+    }
+
+    /// Gets the reason for a flag evaluated to its environment default:
+    /// `DEFAULT` if the feature has segment overrides that did not match, `STATIC` if it has none.
+    fn get_fallback_reason(&self, feature_name: &str) -> String {
+        if self.segment_keys_by_feature_name.contains_key(feature_name) {
+            "DEFAULT".to_string()
+        } else {
+            "STATIC".to_string()
+        }
     }
 
     fn matches_segment(&self, segment_key: &'a str) -> bool {
