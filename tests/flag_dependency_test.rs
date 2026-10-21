@@ -61,6 +61,9 @@ fn context(
 #[case("café", r"$.flags['caf\u00e9'].enabled")]
 #[case("café", "$.flags.café.enabled")]
 #[case("prerequisite_2", "$.flags.prerequisite_2.enabled")]
+#[case("prerequisite", "$.flags .prerequisite .enabled")]
+#[case("prerequisite", "$.flags\t[ 'prerequisite' ]\n.enabled")]
+#[case("prerequisite", "$.flags[\r\"prerequisite\" ]['enabled']")]
 fn test_flag_named_in_any_jsonpath_notation_can_be_depended_on(
     #[case] prerequisite_name: &str,
     #[case] property: &str,

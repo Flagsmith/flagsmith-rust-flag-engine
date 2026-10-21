@@ -198,7 +198,10 @@ fn get_value_from_jsonpath(
 /// feature name and a path into that flag's result, e.g. `$.enabled`.
 /// Expects a valid JSONPath; returns `None` for any path not selecting one flag by name.
 fn split_flag_path(path: &str) -> Option<(String, String)> {
-    let rest = path.strip_prefix(FLAGS_PATH_PREFIX)?;
+    let is_blank = |c: char| matches!(c, ' ' | '\t' | '\n' | '\r');
+    let rest = path
+        .strip_prefix(FLAGS_PATH_PREFIX)?
+        .trim_start_matches(is_blank);
 
     let (feature_name, flag_path) = if let Some(dot_name) = rest.strip_prefix('.') {
         let name_end = dot_name
@@ -209,7 +212,7 @@ fn split_flag_path(path: &str) -> Option<(String, String)> {
         }
         (dot_name[..name_end].to_string(), &dot_name[name_end..])
     } else {
-        let selector = rest.strip_prefix('[')?;
+        let selector = rest.strip_prefix('[')?.trim_start_matches(is_blank);
         let quote = selector
             .chars()
             .next()
@@ -221,7 +224,9 @@ fn split_flag_path(path: &str) -> Option<(String, String)> {
             escaped = !escaped && c == '\\';
             is_end
         })?;
-        let flag_path = literal[literal_end + 1..].strip_prefix(']')?;
+        let flag_path = literal[literal_end + 1..]
+            .trim_start_matches(is_blank)
+            .strip_prefix(']')?;
         (
             unescape_string_literal(&literal[..literal_end], quote)?,
             flag_path,
