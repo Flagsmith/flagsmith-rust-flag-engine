@@ -1,29 +1,32 @@
 use crate::engine_eval::context::{EngineEvaluationContext, FeatureContext};
 use crate::engine_eval::result::{EvaluationResult, FlagResult, SegmentResult};
-use crate::engine_eval::segment_evaluator::is_context_in_segment;
+use crate::engine_eval::segment_evaluator::{is_context_in_segment_with_flags, FlagLookup};
 use crate::utils::hashing;
-use std::collections::HashMap;
+use std::cell::{Cell, RefCell};
+use std::collections::{HashMap, HashSet};
 
-/// Holds a feature context with its associated segment name for priority comparison
-struct FeatureContextWithSegment {
-    feature_context: FeatureContext,
-    segment_name: String,
-}
+/// Reason given to flags whose evaluation depends on themselves.
+pub const CIRCULAR_DEPENDENCY_REASON: &str = "ERROR; code=CIRCULAR_DEPENDENCY";
 
 /// Helper to get priority or default
 fn get_priority_or_default(priority: Option<f64>) -> f64 {
     priority.unwrap_or(f64::INFINITY) // Weakest possible priority
 }
 
+/// Whether a segment override takes precedence over the one held so far; the first seen wins a tie
+fn wins_over(candidate: &FeatureContext, incumbent: Option<&FeatureContext>) -> bool {
+    incumbent.is_none_or(|incumbent| {
+        get_priority_or_default(candidate.priority) < get_priority_or_default(incumbent.priority)
+    })
+}
+
 /// Gets matching segments and their overrides
-fn get_matching_segments_and_overrides(
-    ec: &EngineEvaluationContext,
-) -> (
-    Vec<SegmentResult>,
-    HashMap<String, FeatureContextWithSegment>,
-) {
+fn get_matching_segments_and_overrides<'a>(
+    ec: &'a EngineEvaluationContext,
+    resolver: &DependencyResolver,
+) -> (Vec<SegmentResult>, HashMap<&'a str, SegmentOverride<'a>>) {
     let mut segments = Vec::new();
-    let mut segment_feature_contexts: HashMap<String, FeatureContextWithSegment> = HashMap::new();
+    let mut segment_feature_contexts: HashMap<&str, SegmentOverride> = HashMap::new();
 
     // Sort segment keys for deterministic ordering
     let mut segment_keys: Vec<_> = ec.segments.keys().collect();
@@ -33,7 +36,13 @@ fn get_matching_segments_and_overrides(
     for segment_key in segment_keys {
         let segment_context = &ec.segments[segment_key];
 
-        if !is_context_in_segment(ec, segment_context) {
+        let cycle_hits = resolver.cycle_hits.get();
+        let matches = is_context_in_segment_with_flags(ec, segment_context, Some(resolver));
+        if resolver.cycle_hits.get() != cycle_hits {
+            // Matched, or not, on a flag that could not be resolved, so neither verdict is sound
+            continue;
+        }
+        if !matches {
             continue;
         }
 
@@ -45,23 +54,18 @@ fn get_matching_segments_and_overrides(
 
         // Process segment overrides
         for override_fc in &segment_context.overrides {
-            let feature_name = &override_fc.name;
+            let feature_name = override_fc.name.as_str();
 
-            // Check if we should update the segment feature context
-            let should_update = if let Some(existing) = segment_feature_contexts.get(feature_name) {
-                let existing_priority = get_priority_or_default(existing.feature_context.priority);
-                let override_priority = get_priority_or_default(override_fc.priority);
-                override_priority < existing_priority
-            } else {
-                true
-            };
+            let incumbent = segment_feature_contexts
+                .get(feature_name)
+                .map(|existing| existing.feature_context);
 
-            if should_update {
+            if wins_over(override_fc, incumbent) {
                 segment_feature_contexts.insert(
-                    feature_name.clone(),
-                    FeatureContextWithSegment {
-                        feature_context: override_fc.clone(),
-                        segment_name: segment_context.name.clone(),
+                    feature_name,
+                    SegmentOverride {
+                        feature_context: override_fc,
+                        segment_name: &segment_context.name,
                     },
                 );
             }
@@ -74,35 +78,25 @@ fn get_matching_segments_and_overrides(
 /// Gets flag results from feature contexts and segment overrides
 fn get_flag_results(
     ec: &EngineEvaluationContext,
-    segment_feature_contexts: &HashMap<String, FeatureContextWithSegment>,
+    segment_feature_contexts: &HashMap<&str, SegmentOverride>,
+    identity_key: Option<&String>,
 ) -> HashMap<String, FlagResult> {
     let mut flags = HashMap::new();
-
-    // Get identity key if identity exists
-    // If identity key is not provided, construct it from environment key and identifier
-    let identity_key: Option<String> = ec.identity.as_ref().map(|i| {
-        if i.key.is_empty() {
-            format!("{}_{}", ec.environment.key, i.identifier)
-        } else {
-            i.key.clone()
-        }
-    });
 
     // Process all features
     for feature_context in ec.features.values() {
         // Check if we have a segment override for this feature
-        if let Some(segment_fc) = segment_feature_contexts.get(&feature_context.name) {
+        if let Some(segment_fc) = segment_feature_contexts.get(feature_context.name.as_str()) {
             // Use segment override with multivariate evaluation
-            let fc = &segment_fc.feature_context;
+            let fc = segment_fc.feature_context;
             let reason = format!("TARGETING_MATCH; segment={}", segment_fc.segment_name);
-            let flag_result =
-                get_flag_result_from_feature_context(fc, identity_key.as_ref(), reason);
+            let flag_result = get_flag_result_from_feature_context(fc, identity_key, reason);
             flags.insert(feature_context.name.clone(), flag_result);
         } else {
             // Use default feature context
             let flag_result = get_flag_result_from_feature_context(
                 feature_context,
-                identity_key.as_ref(),
+                identity_key,
                 "DEFAULT".to_string(),
             );
             flags.insert(feature_context.name.clone(), flag_result);
@@ -113,13 +107,188 @@ fn get_flag_results(
 }
 
 pub fn get_evaluation_result(ec: &EngineEvaluationContext) -> EvaluationResult {
+    // Get identity key if identity exists
+    // If identity key is not provided, construct it from environment key and identifier
+    let identity_key: Option<String> = ec.identity.as_ref().map(|i| {
+        if i.key.is_empty() {
+            format!("{}_{}", ec.environment.key, i.identifier)
+        } else {
+            i.key.clone()
+        }
+    });
+
+    let resolver = DependencyResolver::new(ec, identity_key.as_ref());
+
     // Process segments
-    let (segments, segment_feature_contexts) = get_matching_segments_and_overrides(ec);
+    let (segments, segment_feature_contexts) = get_matching_segments_and_overrides(ec, &resolver);
 
     // Get flag results
-    let flags = get_flag_results(ec, &segment_feature_contexts);
+    let mut flags = get_flag_results(ec, &segment_feature_contexts, identity_key.as_ref());
+
+    // Flags resolved for segment conditions take precedence, as only they are guarded against cycles
+    flags.extend(resolver.resolved.take());
+    for feature_name in resolver.cyclic.take() {
+        if let Some(flag) = flags.get_mut(&feature_name) {
+            flag.reason = CIRCULAR_DEPENDENCY_REASON.to_string();
+        }
+    }
 
     EvaluationResult { flags, segments }
+}
+
+/// Resolves, and memoises, the flags read by segment conditions through `$.flags` paths
+struct DependencyResolver<'a> {
+    ec: &'a EngineEvaluationContext,
+    identity_key: Option<&'a String>,
+    /// Segment keys, in evaluation order, of the segments overriding each feature
+    segment_keys_by_feature_name: HashMap<&'a str, Vec<&'a String>>,
+    segment_matches: RefCell<HashMap<&'a str, bool>>,
+    /// Features being resolved, outermost first
+    resolving: RefCell<Vec<String>>,
+    resolved: RefCell<HashMap<String, FlagResult>>,
+    /// Features found to be in a dependency cycle
+    cyclic: RefCell<HashSet<String>>,
+    /// Incremented whenever a cycle is cut, so that evaluations reaching one can be told apart
+    cycle_hits: Cell<usize>,
+}
+
+impl<'a> DependencyResolver<'a> {
+    fn new(ec: &'a EngineEvaluationContext, identity_key: Option<&'a String>) -> Self {
+        let mut segment_keys: Vec<_> = ec.segments.keys().collect();
+        segment_keys.sort();
+
+        let mut segment_keys_by_feature_name: HashMap<&str, Vec<&String>> = HashMap::new();
+        for segment_key in segment_keys {
+            for override_fc in &ec.segments[segment_key].overrides {
+                segment_keys_by_feature_name
+                    .entry(override_fc.name.as_str())
+                    .or_default()
+                    .push(segment_key);
+            }
+        }
+
+        Self {
+            ec,
+            identity_key,
+            segment_keys_by_feature_name,
+            segment_matches: RefCell::new(HashMap::new()),
+            resolving: RefCell::new(Vec::new()),
+            resolved: RefCell::new(HashMap::new()),
+            cyclic: RefCell::new(HashSet::new()),
+            cycle_hits: Cell::new(0),
+        }
+    }
+
+    fn resolve_feature(&self, feature_name: &str) {
+        let cycle_start = self
+            .resolving
+            .borrow()
+            .iter()
+            .position(|name| name == feature_name);
+        if let Some(cycle_start) = cycle_start {
+            let resolving = self.resolving.borrow();
+            self.cyclic
+                .borrow_mut()
+                .extend(resolving[cycle_start..].iter().cloned());
+            self.cycle_hits.set(self.cycle_hits.get() + 1);
+            return;
+        }
+
+        let Some(feature_context) = self.ec.features.get(feature_name) else {
+            return;
+        };
+
+        self.resolving.borrow_mut().push(feature_name.to_string());
+        let segment_override = self.get_segment_override(feature_name);
+        self.resolving.borrow_mut().pop();
+
+        if self.cyclic.borrow().contains(feature_name) {
+            // Not a result another condition may match on
+            return;
+        }
+
+        let flag_result = match segment_override {
+            Some(segment_override) => get_flag_result_from_feature_context(
+                segment_override.feature_context,
+                self.identity_key,
+                format!("TARGETING_MATCH; segment={}", segment_override.segment_name),
+            ),
+            None => get_flag_result_from_feature_context(
+                feature_context,
+                self.identity_key,
+                "DEFAULT".to_string(),
+            ),
+        };
+        self.resolved
+            .borrow_mut()
+            .insert(feature_name.to_string(), flag_result);
+    }
+
+    fn matches_segment(&self, segment_key: &'a str) -> bool {
+        if let Some(matches) = self.segment_matches.borrow().get(segment_key) {
+            return *matches;
+        }
+
+        let cycle_hits = self.cycle_hits.get();
+        let matches =
+            is_context_in_segment_with_flags(self.ec, &self.ec.segments[segment_key], Some(self));
+        if self.cycle_hits.get() != cycle_hits {
+            // Reached by cutting a cycle, so the verdict rests on a flag that could not be resolved
+            return false;
+        }
+
+        self.segment_matches
+            .borrow_mut()
+            .insert(segment_key, matches);
+        matches
+    }
+
+    fn get_segment_override(&self, feature_name: &str) -> Option<SegmentOverride<'a>> {
+        let mut segment_override: Option<SegmentOverride<'a>> = None;
+
+        let segment_keys = self
+            .segment_keys_by_feature_name
+            .get(feature_name)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        for segment_key in segment_keys {
+            if !self.matches_segment(segment_key) {
+                continue;
+            }
+            let segment_context = &self.ec.segments[segment_key.as_str()];
+            for override_fc in &segment_context.overrides {
+                if override_fc.name == feature_name
+                    && wins_over(
+                        override_fc,
+                        segment_override.as_ref().map(|o| o.feature_context),
+                    )
+                {
+                    segment_override = Some(SegmentOverride {
+                        feature_context: override_fc,
+                        segment_name: &segment_context.name,
+                    });
+                }
+            }
+        }
+
+        segment_override
+    }
+}
+
+impl FlagLookup for DependencyResolver<'_> {
+    fn get_flag(&self, feature_name: &str) -> Option<FlagResult> {
+        if let Some(flag) = self.resolved.borrow().get(feature_name) {
+            return Some(flag.clone());
+        }
+        self.resolve_feature(feature_name);
+        self.resolved.borrow().get(feature_name).cloned()
+    }
+}
+
+/// A segment override borrowed from the evaluation context
+struct SegmentOverride<'a> {
+    feature_context: &'a FeatureContext,
+    segment_name: &'a str,
 }
 
 /// Creates a FlagResult from a FeatureContext

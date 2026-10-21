@@ -51,16 +51,20 @@ fn test_engine_evaluation() {
             .unwrap_or_else(|e| panic!("Failed to deserialize context for {}: {:?}", test_name, e));
 
         // Get the evaluation result
-        let result = get_evaluation_result(&context);
+        let mut result = get_evaluation_result(&context);
 
         // Deserialize the expected result
-        let expected: EvaluationResult = serde_json::from_value(test_json["result"].clone())
+        let mut expected: EvaluationResult = serde_json::from_value(test_json["result"].clone())
             .unwrap_or_else(|e| {
                 panic!(
                     "Failed to deserialize expected result for {}: {:?}",
                     test_name, e
                 )
             });
+
+        // Matched segments are unordered, as are the segments of the context
+        result.segments.sort_by(|a, b| a.name.cmp(&b.name));
+        expected.segments.sort_by(|a, b| a.name.cmp(&b.name));
 
         // Compare results - panic immediately on mismatch
         assert_eq!(
