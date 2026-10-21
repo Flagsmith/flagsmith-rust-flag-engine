@@ -2,21 +2,76 @@ use super::context::{
     Condition, ConditionOperator, EngineEvaluationContext, SegmentContext, SegmentRule,
     SegmentRuleType,
 };
+use super::result::FlagResult;
 use crate::types::FlagsmithValue;
 use crate::utils::hashing;
 use regex::Regex;
 use semver::Version;
 use serde_json_path::JsonPath;
+use std::cell::OnceCell;
+
+const FLAGS_PATH_PREFIX: &str = "$.flags";
+
+/// Provides what segment conditions read through JSONPath properties.
+pub(crate) trait ConditionInputs {
+    /// Gets the evaluation context as JSON, or `None` if it cannot be serialised.
+    fn get_context_json(&self) -> Option<&serde_json::Value>;
+
+    /// Gets the evaluated flag for a feature, or `None` if it cannot be resolved.
+    fn get_flag(&self, feature_name: &str) -> Option<FlagResult>;
+}
+
+/// The evaluation context as JSON, serialised at most once however many conditions read it
+pub(crate) struct ContextJson<'a> {
+    ec: &'a EngineEvaluationContext,
+    json: OnceCell<Option<serde_json::Value>>,
+}
+
+impl<'a> ContextJson<'a> {
+    pub(crate) fn new(ec: &'a EngineEvaluationContext) -> Self {
+        Self {
+            ec,
+            json: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn get(&self) -> Option<&serde_json::Value> {
+        self.json
+            .get_or_init(|| serde_json::to_value(self.ec).ok())
+            .as_ref()
+    }
+}
+
+/// Reads flags as unresolvable, for segments evaluated outside a whole evaluation
+impl ConditionInputs for ContextJson<'_> {
+    fn get_context_json(&self) -> Option<&serde_json::Value> {
+        self.get()
+    }
+
+    fn get_flag(&self, _feature_name: &str) -> Option<FlagResult> {
+        None
+    }
+}
 
 /// Determines if the given evaluation context matches the segment rules
 pub fn is_context_in_segment(ec: &EngineEvaluationContext, segment: &SegmentContext) -> bool {
+    is_context_in_segment_with_inputs(ec, segment, &ContextJson::new(ec))
+}
+
+/// Determines if the given evaluation context matches the segment rules, reading JSONPath
+/// properties from `inputs`
+pub(crate) fn is_context_in_segment_with_inputs(
+    ec: &EngineEvaluationContext,
+    segment: &SegmentContext,
+    inputs: &dyn ConditionInputs,
+) -> bool {
     if segment.rules.is_empty() {
         return false;
     }
 
     // All top-level rules must match
     for rule in &segment.rules {
-        if !context_matches_segment_rule(ec, rule, &segment.key) {
+        if !context_matches_segment_rule(ec, rule, &segment.key, inputs) {
             return false;
         }
     }
@@ -29,10 +84,17 @@ fn context_matches_segment_rule(
     ec: &EngineEvaluationContext,
     rule: &SegmentRule,
     segment_key: &str,
+    inputs: &dyn ConditionInputs,
 ) -> bool {
     // Check conditions if present
     if !rule.conditions.is_empty()
-        && !matches_conditions_by_rule_type(ec, &rule.conditions, &rule.rule_type, segment_key)
+        && !matches_conditions_by_rule_type(
+            ec,
+            &rule.conditions,
+            &rule.rule_type,
+            segment_key,
+            inputs,
+        )
     {
         return false;
     }
@@ -42,7 +104,7 @@ fn context_matches_segment_rule(
         return true;
     }
 
-    matches_sub_rules_by_rule_type(ec, &rule.rules, &rule.rule_type, segment_key)
+    matches_sub_rules_by_rule_type(ec, &rule.rules, &rule.rule_type, segment_key, inputs)
 }
 
 fn matches_sub_rules_by_rule_type(
@@ -50,10 +112,11 @@ fn matches_sub_rules_by_rule_type(
     sub_rules: &[SegmentRule],
     rule_type: &SegmentRuleType,
     segment_key: &str,
+    inputs: &dyn ConditionInputs,
 ) -> bool {
     let mut results = sub_rules
         .iter()
-        .map(|sr| context_matches_segment_rule(ec, sr, segment_key));
+        .map(|sr| context_matches_segment_rule(ec, sr, segment_key, inputs));
     match rule_type {
         SegmentRuleType::All => results.all(|r| r),
         SegmentRuleType::Any => results.any(|r| r),
@@ -67,9 +130,10 @@ fn matches_conditions_by_rule_type(
     conditions: &[Condition],
     rule_type: &SegmentRuleType,
     segment_key: &str,
+    inputs: &dyn ConditionInputs,
 ) -> bool {
     for condition in conditions {
-        let condition_matches = context_matches_condition(ec, condition, segment_key);
+        let condition_matches = context_matches_condition(ec, condition, segment_key, inputs);
 
         match rule_type {
             SegmentRuleType::All => {
@@ -99,9 +163,10 @@ fn context_matches_condition(
     ec: &EngineEvaluationContext,
     condition: &Condition,
     segment_key: &str,
+    inputs: &dyn ConditionInputs,
 ) -> bool {
     let context_value = if !condition.property.is_empty() {
-        get_context_value(ec, &condition.property)
+        get_context_value(ec, &condition.property, inputs)
     } else {
         None
     };
@@ -124,10 +189,14 @@ fn context_matches_condition(
 }
 
 /// Gets a value from the context by property name or JSONPath
-fn get_context_value(ec: &EngineEvaluationContext, property: &str) -> Option<FlagsmithValue> {
+fn get_context_value(
+    ec: &EngineEvaluationContext,
+    property: &str,
+    inputs: &dyn ConditionInputs,
+) -> Option<FlagsmithValue> {
     // If property starts with $., try to parse it as a JSONPath expression
     if property.starts_with("$.") {
-        if let Some(value) = get_value_from_jsonpath(ec, property) {
+        if let Some(value) = get_value_from_jsonpath(property, inputs) {
             return Some(value);
         }
         // If JSONPath parsing fails, fall through to treat it as a trait name
@@ -144,30 +213,89 @@ fn get_context_value(ec: &EngineEvaluationContext, property: &str) -> Option<Fla
 }
 
 /// Gets a value from the context using JSONPath
-fn get_value_from_jsonpath(ec: &EngineEvaluationContext, path: &str) -> Option<FlagsmithValue> {
-    // Parse the JSONPath expression
-    let json_path = match JsonPath::parse(path) {
-        Ok(p) => p,
-        Err(_) => return None,
-    };
+fn get_value_from_jsonpath(path: &str, inputs: &dyn ConditionInputs) -> Option<FlagsmithValue> {
+    let json_path = JsonPath::parse(path).ok()?;
 
-    // Serialize the context to JSON
-    let context_json = match serde_json::to_value(ec) {
-        Ok(v) => v,
-        Err(_) => return None,
-    };
-
-    // Query the JSON using the path
-    let result = json_path.query(&context_json);
-
-    // Get the first match (if any)
-    let node_list = result.all();
-    if node_list.is_empty() {
-        return None;
+    if let Some((feature_name, flag_path)) = split_flag_path(path) {
+        let flag = inputs.get_flag(&feature_name)?;
+        let flag_json = serde_json::to_value(flag).ok()?;
+        let flag_json_path = JsonPath::parse(&flag_path).ok()?;
+        return query_scalar(&flag_json_path, &flag_json);
     }
 
+    query_scalar(&json_path, inputs.get_context_json()?)
+}
+
+/// Splits a path reading a single flag, e.g. `$.flags['my feature'].enabled`, into the
+/// feature name and a path into that flag's result, e.g. `$.enabled`.
+/// Expects a valid JSONPath; returns `None` for any path not selecting one flag by name.
+fn split_flag_path(path: &str) -> Option<(String, String)> {
+    let is_blank = |c: char| matches!(c, ' ' | '\t' | '\n' | '\r');
+    let rest = path
+        .strip_prefix(FLAGS_PATH_PREFIX)?
+        .trim_start_matches(is_blank);
+
+    let (feature_name, flag_path) = if let Some(dot_name) = rest.strip_prefix('.') {
+        let name_end = dot_name
+            .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || !c.is_ascii()))
+            .unwrap_or(dot_name.len());
+        if name_end == 0 {
+            return None;
+        }
+        (dot_name[..name_end].to_string(), &dot_name[name_end..])
+    } else {
+        let selector = rest.strip_prefix('[')?.trim_start_matches(is_blank);
+        let quote = selector
+            .chars()
+            .next()
+            .filter(|c| *c == '\'' || *c == '"')?;
+        let literal = &selector[1..];
+        let mut escaped = false;
+        let literal_end = literal.find(|c: char| {
+            let is_end = !escaped && c == quote;
+            escaped = !escaped && c == '\\';
+            is_end
+        })?;
+        let flag_path = literal[literal_end + 1..]
+            .trim_start_matches(is_blank)
+            .strip_prefix(']')?;
+        (
+            unescape_string_literal(&literal[..literal_end], quote)?,
+            flag_path,
+        )
+    };
+
+    Some((feature_name, format!("${flag_path}")))
+}
+
+/// Unescapes the contents of a JSONPath string literal, which share JSON's escapes plus `\'`
+fn unescape_string_literal(contents: &str, quote: char) -> Option<String> {
+    let mut json_string = String::with_capacity(contents.len() + 2);
+    json_string.push('"');
+    let mut chars = contents.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => match chars.next()? {
+                '\'' => json_string.push('\''),
+                escaped => {
+                    json_string.push('\\');
+                    json_string.push(escaped);
+                }
+            },
+            '"' if quote == '\'' => json_string.push_str("\\\""),
+            _ => json_string.push(c),
+        }
+    }
+    json_string.push('"');
+    serde_json::from_str(&json_string).ok()
+}
+
+/// Gets the first scalar value a JSONPath selects in a JSON document
+fn query_scalar(json_path: &JsonPath, json: &serde_json::Value) -> Option<FlagsmithValue> {
+    let node_list = json_path.query(json).all();
+
     // Extract the value from the first match
-    let value = node_list[0];
+    let value = *node_list.first()?;
 
     // Convert to FlagsmithValue based on the JSON type
     match value {

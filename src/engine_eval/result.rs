@@ -23,11 +23,15 @@ pub struct FlagResult {
     /// The name of the feature.
     pub name: String,
 
-    /// The reason for this evaluation result (e.g., "DEFAULT", "TARGETING_MATCH; segment=name", "SPLIT; weight=50").
+    /// The reason for this evaluation result (e.g., "STATIC", "DEFAULT", "TARGETING_MATCH; segment=name", "SPLIT; weight=50").
     pub reason: String,
 
     /// The value of the feature flag.
     pub value: FlagsmithValue,
+
+    /// The key of the multivariate variant selected, "control" for the control bucket, or `None` when no split applied.
+    #[serde(default)]
+    pub variant: Option<String>,
 
     /// Metadata about the feature.
     #[serde(default)]

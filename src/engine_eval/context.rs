@@ -29,6 +29,9 @@ fn default_feature_type() -> String {
 /// Represents a multivariate value for a feature flag.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeatureValue {
+    /// A stable identifier for the variant, returned as the flag result's variant when selected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
     /// The value of the feature.
     pub value: FlagsmithValue,
     /// The weight of the feature value variant, as a percentage number (i.e. 100.0).
