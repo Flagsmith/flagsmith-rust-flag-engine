@@ -29,6 +29,10 @@ pub struct FlagResult {
     /// The value of the feature flag.
     pub value: FlagsmithValue,
 
+    /// The key of the multivariate variant selected, "control" for the control bucket, or `None` when no split applied.
+    #[serde(default)]
+    pub variant: Option<String>,
+
     /// Metadata about the feature.
     #[serde(default)]
     pub metadata: FeatureMetadata,

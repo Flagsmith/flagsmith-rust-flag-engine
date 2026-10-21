@@ -91,6 +91,7 @@ fn map_multivariate_values_to_variants(
     mv_values
         .iter()
         .map(|mv| FeatureValue {
+            key: None,
             value: mv.multivariate_feature_option.value.clone(),
             weight: mv.percentage_allocation as f64,
             priority: None,

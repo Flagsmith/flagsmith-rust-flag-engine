@@ -130,6 +130,7 @@ fn get_flag_result_from_feature_context(
 ) -> FlagResult {
     let mut reason = default_reason;
     let mut value = feature_context.value.clone();
+    let mut variant = None;
 
     // Handle multivariate features
     if !feature_context.variants.is_empty()
@@ -148,13 +149,16 @@ fn get_flag_result_from_feature_context(
         let object_ids = vec![feature_context.key.as_str(), identity_key.unwrap().as_str()];
         let hash_percentage = hashing::get_hashed_percentage_for_object_ids(object_ids, 1);
 
+        variant = Some("control".to_string());
+
         // Select variant based on weighted distribution
         let mut cumulative_weight = 0.0;
-        for variant in &sorted_variants {
-            cumulative_weight += variant.weight;
+        for feature_value in &sorted_variants {
+            cumulative_weight += feature_value.weight;
             if (hash_percentage as f64) <= cumulative_weight {
-                value = variant.value.clone();
-                reason = format!("SPLIT; weight={}", variant.weight);
+                value = feature_value.value.clone();
+                variant = feature_value.key.clone();
+                reason = format!("SPLIT; weight={}", feature_value.weight);
                 break;
             }
         }
@@ -164,6 +168,7 @@ fn get_flag_result_from_feature_context(
         enabled: feature_context.enabled,
         name: feature_context.name.clone(),
         value,
+        variant,
         reason,
         metadata: feature_context.metadata.clone(),
     }
