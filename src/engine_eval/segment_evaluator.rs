@@ -6,7 +6,7 @@ use super::result::FlagResult;
 use crate::engine::{
     get_fallback_reason, get_flag_result_from_feature_context, wins_over, SegmentOverride,
 };
-use crate::types::FlagsmithValue;
+use crate::types::{FlagsmithValue, FlagsmithValueType};
 use crate::utils::hashing;
 use jsonpath_rust::parser::model::{JpQuery, Segment, Selector};
 use jsonpath_rust::parser::parse_json_path;
@@ -50,6 +50,8 @@ struct FlagDependencies<'a> {
     cyclic: RefCell<HashSet<&'a str>>,
     /// Incremented whenever a cycle is cut, so that verdicts resting on one can be told apart
     cycle_hits: Cell<usize>,
+    /// Whether a condition has read a flag, after which segment matches are memoised
+    used: Cell<bool>,
 }
 
 /// A JSONPath reading the result of the feature it names, e.g. `$.flags.my_feature.enabled`
@@ -89,16 +91,18 @@ impl<'a> SegmentEvaluator<'a> {
                 resolved: RefCell::new(HashMap::new()),
                 cyclic: RefCell::new(HashSet::new()),
                 cycle_hits: Cell::new(0),
+                used: Cell::new(false),
             }),
             ..Self::new(ec)
         }
     }
 
-    /// How many times a dependency cycle has been cut so far
-    pub(crate) fn cycle_hits(&self) -> usize {
-        self.flag_dependencies
-            .as_ref()
-            .map_or(0, |dependencies| dependencies.cycle_hits.get())
+    /// Whether the context belongs to a segment; one matching, or not, on a flag in a dependency cycle does not
+    pub(crate) fn matches_segment_key(&self, segment_key: &'a str) -> bool {
+        match &self.flag_dependencies {
+            Some(dependencies) => self.matches_segment(dependencies, segment_key),
+            None => self.is_context_in_segment(&self.ec.segments[segment_key]),
+        }
     }
 
     pub(crate) fn into_resolved_flags(self) -> ResolvedFlags<'a> {
@@ -148,6 +152,42 @@ impl<'a> SegmentEvaluator<'a> {
         query_first_value(&json_path, self.context_json()?)
     }
 
+    /// Gets a value by member names straight from the context, or `None` for members only JSONPath can read
+    fn get_member_value(&self, names: &[&str]) -> Option<Option<FlagsmithValue>> {
+        let string_value = |value: &String| FlagsmithValue {
+            value: value.clone(),
+            value_type: FlagsmithValueType::String,
+        };
+        let identity = self.ec.identity.as_ref();
+        Some(match names {
+            ["environment", "key"] => Some(string_value(&self.ec.environment.key)),
+            ["environment", "name"] => Some(string_value(&self.ec.environment.name)),
+            ["identity", "identifier"] => identity.map(|i| string_value(&i.identifier)),
+            ["identity", "key"] => identity.map(|i| string_value(&i.key)),
+            ["identity", "traits", trait_key] => identity
+                .and_then(|i| i.traits.get(*trait_key))
+                .filter(|value| value.value_type != FlagsmithValueType::None)
+                .cloned(),
+            ["flags", feature_name, field @ ("enabled" | "value" | "variant")] => {
+                let dependencies = self.flag_dependencies.as_ref()?;
+                let Some((feature_name, _)) = self.ec.features.get_key_value(*feature_name) else {
+                    return Some(None);
+                };
+                self.read_flag(dependencies, feature_name, |flag| match *field {
+                    "enabled" => Some(FlagsmithValue {
+                        value: flag.enabled.to_string(),
+                        value_type: FlagsmithValueType::Bool,
+                    }),
+                    "value" => Some(flag.value.clone())
+                        .filter(|value| value.value_type != FlagsmithValueType::None),
+                    _ => flag.variant.as_ref().map(string_value),
+                })
+                .flatten()
+            }
+            _ => return None,
+        })
+    }
+
     /// Gets a value from the result of the feature a `$.flags` JSONPath names, resolving it on first read
     fn get_value_from_flags(
         &self,
@@ -158,7 +198,11 @@ impl<'a> SegmentEvaluator<'a> {
             return self.get_value_from_jsonpath(path); // Reads no flag, as the context holds none
         };
         let (feature_name, _) = self.ec.features.get_key_value(&flag_path.feature_name)?;
-        let flag = self.read_flag(dependencies, feature_name)?;
+        let flag = self
+            .read_flag(dependencies, feature_name, |flag| {
+                serde_json::to_value(flag)
+            })?
+            .ok()?;
         let flags = serde_json::Map::from_iter([(feature_name.clone(), flag)]);
         let flags_json = serde_json::Value::Object(serde_json::Map::from_iter([(
             "flags".to_string(),
@@ -183,16 +227,17 @@ impl<'a> SegmentEvaluator<'a> {
         flag_path
     }
 
-    fn read_flag(
+    fn read_flag<T>(
         &self,
         dependencies: &FlagDependencies<'a>,
         feature_name: &'a str,
-    ) -> Option<serde_json::Value> {
+        read: impl FnOnce(&FlagResult) -> T,
+    ) -> Option<T> {
+        dependencies.used.set(true);
         if !dependencies.resolved.borrow().contains_key(feature_name) {
             self.resolve_feature(dependencies, feature_name);
         }
-        let resolved = dependencies.resolved.borrow();
-        serde_json::to_value(resolved.get(feature_name)?).ok()
+        dependencies.resolved.borrow().get(feature_name).map(read)
     }
 
     /// Resolves a flag, unless it depends on itself, or is absent from the context
@@ -293,10 +338,12 @@ impl<'a> SegmentEvaluator<'a> {
             return false; // The verdict rests on a flag left unresolved by a cycle
         }
 
-        dependencies
-            .segment_matches
-            .borrow_mut()
-            .insert(segment_key, matches);
+        if dependencies.used.get() {
+            dependencies
+                .segment_matches
+                .borrow_mut()
+                .insert(segment_key, matches);
+        }
         matches
     }
 
@@ -487,15 +534,33 @@ fn context_matches_condition(
     }
 }
 
+/// Splits a JSONPath made of member names only, e.g. `$.identity.identifier`, into those names
+fn get_member_names(path: &str) -> Option<Vec<&str>> {
+    let names: Vec<&str> = path.strip_prefix("$.")?.split('.').collect();
+    names
+        .iter()
+        .all(|name| {
+            let mut chars = name.chars();
+            chars
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        })
+        .then_some(names)
+}
+
 /// Gets a value from the context by property name or JSONPath
 fn get_context_value(evaluator: &SegmentEvaluator, property: &str) -> Option<FlagsmithValue> {
     // If property starts with $., try to parse it as a JSONPath expression
     if property.starts_with("$.") {
-        let value = match &evaluator.flag_dependencies {
-            Some(dependencies) if property.starts_with("$.flags") => {
+        let member_value =
+            get_member_names(property).and_then(|names| evaluator.get_member_value(&names));
+        let value = match (member_value, &evaluator.flag_dependencies) {
+            (Some(value), _) => value,
+            (None, Some(dependencies)) if property.starts_with("$.flags") => {
                 evaluator.get_value_from_flags(dependencies, property)
             }
-            _ => evaluator.get_value_from_jsonpath(property),
+            (None, _) => evaluator.get_value_from_jsonpath(property),
         };
         if let Some(value) = value {
             return Some(value);
@@ -765,7 +830,7 @@ mod tests {
                 rule_type: SegmentRuleType::All,
                 conditions: vec![Condition {
                     operator: ConditionOperator::In,
-                    property: "$.identity.identifier".to_string(),
+                    property: "$.identity['identifier']".to_string(),
                     value: super::super::context::ConditionValue::Multiple(
                         identifiers.iter().map(|i| i.to_string()).collect(),
                     ),
@@ -787,19 +852,28 @@ mod tests {
         let json_path_values = evaluator.json_path_values.borrow();
         assert_eq!(json_path_values.len(), 1);
         assert_eq!(
-            json_path_values["$.identity.identifier"]
+            json_path_values["$.identity['identifier']"]
                 .as_ref()
                 .map(|v| v.value.as_str()),
             Some("user-1")
         );
     }
 
-    #[test]
-    fn test_segment_evaluator_skips_serialisation_without_jsonpath() {
+    #[rstest::rstest]
+    #[case("plan", "pro")]
+    #[case("$.identity.traits.plan", "pro")]
+    #[case("$.identity.identifier", "user-1")]
+    #[case("$.identity.key", "env-key_user-1")]
+    #[case("$.environment.name", "Environment")]
+    #[case("$.environment.key", "env-key")]
+    fn test_segment_evaluator_skips_serialisation_without_jsonpath(
+        #[case] property: &str,
+        #[case] value: &str,
+    ) {
         // Given
         let ec: EngineEvaluationContext = serde_json::from_value(serde_json::json!({
             "environment": {"key": "env-key", "name": "Environment"},
-            "identity": {"identifier": "user-1", "traits": {"plan": "pro"}},
+            "identity": {"identifier": "user-1", "key": "env-key_user-1", "traits": {"plan": "pro"}},
         }))
         .unwrap();
         let segment = SegmentContext {
@@ -811,8 +885,8 @@ mod tests {
                 rule_type: SegmentRuleType::All,
                 conditions: vec![Condition {
                     operator: ConditionOperator::Equal,
-                    property: "plan".to_string(),
-                    value: super::super::context::ConditionValue::Single("pro".to_string()),
+                    property: property.to_string(),
+                    value: super::super::context::ConditionValue::Single(value.to_string()),
                 }],
                 rules: vec![],
             }],

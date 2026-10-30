@@ -47,13 +47,11 @@ fn evaluate_segments<'a>(
     let mut segment_overrides: HashMap<&str, SegmentOverride> = HashMap::new();
     let mut targeted_feature_names = HashSet::new();
 
-    for segment_context in ec.segments.values() {
+    for (segment_key, segment_context) in &ec.segments {
         targeted_feature_names.extend(segment_context.overrides.iter().map(|o| o.name.as_str()));
 
-        let cycle_hits = evaluator.cycle_hits();
-        if !evaluator.is_context_in_segment(segment_context) || evaluator.cycle_hits() != cycle_hits
-        {
-            continue; // Unmatched, or the verdict rests on a flag left unresolved by a cycle
+        if !evaluator.matches_segment_key(segment_key) {
+            continue;
         }
 
         // Add segment to results
