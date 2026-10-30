@@ -7,32 +7,123 @@ use crate::utils::hashing;
 use regex::Regex;
 use semver::Version;
 use serde_json_path::JsonPath;
+use std::cell::{OnceCell, RefCell};
+use std::collections::HashMap;
 
-/// Determines if the given evaluation context matches the segment rules
-pub fn is_context_in_segment(ec: &EngineEvaluationContext, segment: &SegmentContext) -> bool {
-    if segment.rules.is_empty() {
-        return false;
-    }
+/// Evaluates segments against a single evaluation context.
+///
+/// The context is immutable for the lifetime of the evaluator, so work that
+/// depends only on the context is computed lazily and shared across all
+/// segments and conditions:
+/// - the context is serialised to JSON at most once, and only if a JSONPath
+///   property is evaluated;
+/// - each JSONPath property is parsed and resolved at most once.
+pub(crate) struct SegmentEvaluator<'a> {
+    ec: &'a EngineEvaluationContext,
+    context_json: OnceCell<Option<serde_json::Value>>,
+    json_path_values: RefCell<HashMap<String, Option<FlagsmithValue>>>,
+}
 
-    // All top-level rules must match
-    for rule in &segment.rules {
-        if !context_matches_segment_rule(ec, rule, &segment.key) {
-            return false;
+impl<'a> SegmentEvaluator<'a> {
+    pub(crate) fn new(ec: &'a EngineEvaluationContext) -> Self {
+        Self {
+            ec,
+            context_json: OnceCell::new(),
+            json_path_values: RefCell::new(HashMap::new()),
         }
     }
 
-    true
+    /// Determines if the evaluation context matches the segment rules
+    pub(crate) fn is_context_in_segment(&self, segment: &SegmentContext) -> bool {
+        if segment.rules.is_empty() {
+            return false;
+        }
+
+        // All top-level rules must match
+        segment
+            .rules
+            .iter()
+            .all(|rule| context_matches_segment_rule(self, rule, &segment.key))
+    }
+
+    fn context_json(&self) -> Option<&serde_json::Value> {
+        self.context_json
+            .get_or_init(|| serde_json::to_value(self.ec).ok())
+            .as_ref()
+    }
+
+    /// Gets a value from the context using JSONPath, caching the result per path
+    fn get_value_from_jsonpath(&self, path: &str) -> Option<FlagsmithValue> {
+        if let Some(value) = self.json_path_values.borrow().get(path) {
+            return value.clone();
+        }
+        let value = self.resolve_jsonpath(path);
+        self.json_path_values
+            .borrow_mut()
+            .insert(path.to_string(), value.clone());
+        value
+    }
+
+    fn resolve_jsonpath(&self, path: &str) -> Option<FlagsmithValue> {
+        // Parse the JSONPath expression
+        let json_path = JsonPath::parse(path).ok()?;
+
+        // Query the JSON using the path
+        let result = json_path.query(self.context_json()?);
+
+        // Get the first match (if any)
+        let value = *result.all().first()?;
+
+        // Convert to FlagsmithValue based on the JSON type
+        match value {
+            serde_json::Value::String(s) => Some(FlagsmithValue {
+                value: s.clone(),
+                value_type: crate::types::FlagsmithValueType::String,
+            }),
+            serde_json::Value::Number(n) => {
+                if n.is_f64() {
+                    Some(FlagsmithValue {
+                        value: n.to_string(),
+                        value_type: crate::types::FlagsmithValueType::Float,
+                    })
+                } else {
+                    Some(FlagsmithValue {
+                        value: n.to_string(),
+                        value_type: crate::types::FlagsmithValueType::Integer,
+                    })
+                }
+            }
+            serde_json::Value::Bool(b) => Some(FlagsmithValue {
+                value: b.to_string(),
+                value_type: crate::types::FlagsmithValueType::Bool,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// Determines if the given evaluation context matches the segment rules
+///
+/// When evaluating several segments against the same context, prefer a shared
+/// [`SegmentEvaluator`] so context-derived work is not repeated per segment.
+pub fn is_context_in_segment(ec: &EngineEvaluationContext, segment: &SegmentContext) -> bool {
+    SegmentEvaluator::new(ec).is_context_in_segment(segment)
 }
 
 /// Checks if the context matches a segment rule
 fn context_matches_segment_rule(
-    ec: &EngineEvaluationContext,
+    evaluator: &SegmentEvaluator,
     rule: &SegmentRule,
     segment_key: &str,
 ) -> bool {
     // Check conditions if present
     if !rule.conditions.is_empty()
-        && !matches_conditions_by_rule_type(ec, &rule.conditions, &rule.rule_type, segment_key)
+        && !matches_conditions_by_rule_type(
+            evaluator,
+            &rule.conditions,
+            &rule.rule_type,
+            segment_key,
+        )
     {
         return false;
     }
@@ -42,18 +133,18 @@ fn context_matches_segment_rule(
         return true;
     }
 
-    matches_sub_rules_by_rule_type(ec, &rule.rules, &rule.rule_type, segment_key)
+    matches_sub_rules_by_rule_type(evaluator, &rule.rules, &rule.rule_type, segment_key)
 }
 
 fn matches_sub_rules_by_rule_type(
-    ec: &EngineEvaluationContext,
+    evaluator: &SegmentEvaluator,
     sub_rules: &[SegmentRule],
     rule_type: &SegmentRuleType,
     segment_key: &str,
 ) -> bool {
     let mut results = sub_rules
         .iter()
-        .map(|sr| context_matches_segment_rule(ec, sr, segment_key));
+        .map(|sr| context_matches_segment_rule(evaluator, sr, segment_key));
     match rule_type {
         SegmentRuleType::All => results.all(|r| r),
         SegmentRuleType::Any => results.any(|r| r),
@@ -63,13 +154,13 @@ fn matches_sub_rules_by_rule_type(
 
 /// Checks if conditions match according to the rule type
 fn matches_conditions_by_rule_type(
-    ec: &EngineEvaluationContext,
+    evaluator: &SegmentEvaluator,
     conditions: &[Condition],
     rule_type: &SegmentRuleType,
     segment_key: &str,
 ) -> bool {
     for condition in conditions {
-        let condition_matches = context_matches_condition(ec, condition, segment_key);
+        let condition_matches = context_matches_condition(evaluator, condition, segment_key);
 
         match rule_type {
             SegmentRuleType::All => {
@@ -96,19 +187,19 @@ fn matches_conditions_by_rule_type(
 
 /// Checks if the context matches a specific condition
 fn context_matches_condition(
-    ec: &EngineEvaluationContext,
+    evaluator: &SegmentEvaluator,
     condition: &Condition,
     segment_key: &str,
 ) -> bool {
     let context_value = if !condition.property.is_empty() {
-        get_context_value(ec, &condition.property)
+        get_context_value(evaluator, &condition.property)
     } else {
         None
     };
 
     match condition.operator {
         ConditionOperator::PercentageSplit => {
-            match_percentage_split(ec, condition, segment_key, context_value.as_ref())
+            match_percentage_split(evaluator.ec, condition, segment_key, context_value.as_ref())
         }
         ConditionOperator::In => match_in_operator(condition, context_value.as_ref()),
         ConditionOperator::IsNotSet => context_value.is_none(),
@@ -124,76 +215,23 @@ fn context_matches_condition(
 }
 
 /// Gets a value from the context by property name or JSONPath
-fn get_context_value(ec: &EngineEvaluationContext, property: &str) -> Option<FlagsmithValue> {
+fn get_context_value(evaluator: &SegmentEvaluator, property: &str) -> Option<FlagsmithValue> {
     // If property starts with $., try to parse it as a JSONPath expression
     if property.starts_with("$.") {
-        if let Some(value) = get_value_from_jsonpath(ec, property) {
+        if let Some(value) = evaluator.get_value_from_jsonpath(property) {
             return Some(value);
         }
         // If JSONPath parsing fails, fall through to treat it as a trait name
     }
 
     // Check traits by property name
-    if let Some(ref identity) = ec.identity {
+    if let Some(ref identity) = evaluator.ec.identity {
         if let Some(trait_value) = identity.traits.get(property) {
             return Some(trait_value.clone());
         }
     }
 
     None
-}
-
-/// Gets a value from the context using JSONPath
-fn get_value_from_jsonpath(ec: &EngineEvaluationContext, path: &str) -> Option<FlagsmithValue> {
-    // Parse the JSONPath expression
-    let json_path = match JsonPath::parse(path) {
-        Ok(p) => p,
-        Err(_) => return None,
-    };
-
-    // Serialize the context to JSON
-    let context_json = match serde_json::to_value(ec) {
-        Ok(v) => v,
-        Err(_) => return None,
-    };
-
-    // Query the JSON using the path
-    let result = json_path.query(&context_json);
-
-    // Get the first match (if any)
-    let node_list = result.all();
-    if node_list.is_empty() {
-        return None;
-    }
-
-    // Extract the value from the first match
-    let value = node_list[0];
-
-    // Convert to FlagsmithValue based on the JSON type
-    match value {
-        serde_json::Value::String(s) => Some(FlagsmithValue {
-            value: s.clone(),
-            value_type: crate::types::FlagsmithValueType::String,
-        }),
-        serde_json::Value::Number(n) => {
-            if n.is_f64() {
-                Some(FlagsmithValue {
-                    value: n.to_string(),
-                    value_type: crate::types::FlagsmithValueType::Float,
-                })
-            } else {
-                Some(FlagsmithValue {
-                    value: n.to_string(),
-                    value_type: crate::types::FlagsmithValueType::Integer,
-                })
-            }
-        }
-        serde_json::Value::Bool(b) => Some(FlagsmithValue {
-            value: b.to_string(),
-            value_type: crate::types::FlagsmithValueType::Bool,
-        }),
-        _ => None,
-    }
 }
 
 fn match_percentage_split(
@@ -430,6 +468,85 @@ fn evaluate_semver(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_segment_evaluator_resolves_each_jsonpath_once() {
+        // Given
+        let ec: EngineEvaluationContext = serde_json::from_value(serde_json::json!({
+            "environment": {"key": "env-key", "name": "Environment"},
+            "identity": {"identifier": "user-1", "traits": {}},
+        }))
+        .unwrap();
+        let segment = |identifiers: &[&str]| SegmentContext {
+            key: String::new(),
+            name: "identity_overrides".to_string(),
+            metadata: Default::default(),
+            overrides: vec![],
+            rules: vec![SegmentRule {
+                rule_type: SegmentRuleType::All,
+                conditions: vec![Condition {
+                    operator: ConditionOperator::In,
+                    property: "$.identity.identifier".to_string(),
+                    value: super::super::context::ConditionValue::Multiple(
+                        identifiers.iter().map(|i| i.to_string()).collect(),
+                    ),
+                }],
+                rules: vec![],
+            }],
+        };
+        let evaluator = SegmentEvaluator::new(&ec);
+
+        // When
+        let matches = [
+            evaluator.is_context_in_segment(&segment(&["user-2"])),
+            evaluator.is_context_in_segment(&segment(&["user-1", "user-3"])),
+        ];
+
+        // Then
+        assert_eq!(matches, [false, true]);
+        assert!(evaluator.context_json.get().is_some());
+        let json_path_values = evaluator.json_path_values.borrow();
+        assert_eq!(json_path_values.len(), 1);
+        assert_eq!(
+            json_path_values["$.identity.identifier"]
+                .as_ref()
+                .map(|v| v.value.as_str()),
+            Some("user-1")
+        );
+    }
+
+    #[test]
+    fn test_segment_evaluator_skips_serialisation_without_jsonpath() {
+        // Given
+        let ec: EngineEvaluationContext = serde_json::from_value(serde_json::json!({
+            "environment": {"key": "env-key", "name": "Environment"},
+            "identity": {"identifier": "user-1", "traits": {"plan": "pro"}},
+        }))
+        .unwrap();
+        let segment = SegmentContext {
+            key: String::new(),
+            name: "pro".to_string(),
+            metadata: Default::default(),
+            overrides: vec![],
+            rules: vec![SegmentRule {
+                rule_type: SegmentRuleType::All,
+                conditions: vec![Condition {
+                    operator: ConditionOperator::Equal,
+                    property: "plan".to_string(),
+                    value: super::super::context::ConditionValue::Single("pro".to_string()),
+                }],
+                rules: vec![],
+            }],
+        };
+        let evaluator = SegmentEvaluator::new(&ec);
+
+        // When
+        let matches = evaluator.is_context_in_segment(&segment);
+
+        // Then
+        assert!(matches);
+        assert!(evaluator.context_json.get().is_none());
+    }
 
     #[test]
     fn test_dispatch_operator_integers() {
