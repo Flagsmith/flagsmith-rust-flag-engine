@@ -7,6 +7,7 @@ use crate::environments::Environment;
 use crate::features::{FeatureState, MultivariateFeatureStateValue};
 use crate::identities::{Identity, Trait};
 use crate::segments::{Segment, SegmentRule as OldSegmentRule};
+use indexmap::IndexMap;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
@@ -24,7 +25,7 @@ pub fn environment_to_context(environment: Environment) -> EngineEvaluationConte
             name: environment.name.clone(),
         },
         features: HashMap::new(),
-        segments: HashMap::new(),
+        segments: IndexMap::new(),
         identity: None,
     };
 
@@ -91,6 +92,7 @@ fn map_multivariate_values_to_variants(
     mv_values
         .iter()
         .map(|mv| FeatureValue {
+            key: None,
             value: mv.multivariate_feature_option.value.clone(),
             weight: mv.percentage_allocation as f64,
             priority: None,

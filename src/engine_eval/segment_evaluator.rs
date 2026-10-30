@@ -2,14 +2,20 @@ use super::context::{
     Condition, ConditionOperator, EngineEvaluationContext, SegmentContext, SegmentRule,
     SegmentRuleType,
 };
+use super::result::FlagResult;
+use crate::engine::{
+    get_fallback_reason, get_flag_result_from_feature_context, wins_over, SegmentOverride,
+};
 use crate::types::FlagsmithValue;
 use crate::utils::hashing;
+use jsonpath_rust::parser::model::{JpQuery, Segment, Selector};
 use jsonpath_rust::parser::parse_json_path;
 use jsonpath_rust::query::js_path_process;
 use regex::Regex;
 use semver::Version;
-use std::cell::{OnceCell, RefCell};
-use std::collections::HashMap;
+use std::cell::{Cell, OnceCell, RefCell};
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 /// Evaluates segments against a single evaluation context.
 ///
@@ -18,11 +24,45 @@ use std::collections::HashMap;
 /// segments and conditions:
 /// - the context is serialised to JSON at most once, and only if a JSONPath
 ///   property is evaluated;
-/// - each JSONPath property is parsed and resolved at most once.
+/// - each JSONPath property is parsed at most once, and resolved at most once
+///   unless it reads a flag.
+///
+/// Built [`with_flag_dependencies`](Self::with_flag_dependencies), conditions
+/// can also read other flags through `$.flags.<feature>` paths, each flag
+/// resolved on first read.
 pub(crate) struct SegmentEvaluator<'a> {
     ec: &'a EngineEvaluationContext,
     context_json: OnceCell<Option<serde_json::Value>>,
     json_path_values: RefCell<HashMap<String, Option<FlagsmithValue>>>,
+    flag_dependencies: Option<FlagDependencies<'a>>,
+}
+
+/// The flags read by segment conditions, resolved on first read and memoised
+struct FlagDependencies<'a> {
+    identity_key: Option<&'a String>,
+    /// Keys of the segments overriding each feature, in evaluation order
+    segment_keys_by_feature_name: OnceCell<HashMap<&'a str, Vec<&'a str>>>,
+    segment_matches: RefCell<HashMap<&'a str, bool>>,
+    flag_paths: RefCell<HashMap<String, Option<Rc<FlagPath>>>>,
+    /// Features being resolved, outermost first
+    resolving: RefCell<Vec<&'a str>>,
+    resolved: RefCell<HashMap<&'a str, FlagResult>>,
+    cyclic: RefCell<HashSet<&'a str>>,
+    /// Incremented whenever a cycle is cut, so that verdicts resting on one can be told apart
+    cycle_hits: Cell<usize>,
+}
+
+/// A JSONPath reading the result of the feature it names, e.g. `$.flags.my_feature.enabled`
+struct FlagPath {
+    feature_name: String,
+    json_path: JpQuery,
+}
+
+/// Flags read by segment conditions, and the features found in a dependency cycle
+#[derive(Default)]
+pub(crate) struct ResolvedFlags<'a> {
+    pub(crate) flags: HashMap<&'a str, FlagResult>,
+    pub(crate) cyclic: HashSet<&'a str>,
 }
 
 impl<'a> SegmentEvaluator<'a> {
@@ -31,7 +71,42 @@ impl<'a> SegmentEvaluator<'a> {
             ec,
             context_json: OnceCell::new(),
             json_path_values: RefCell::new(HashMap::new()),
+            flag_dependencies: None,
         }
+    }
+
+    pub(crate) fn with_flag_dependencies(
+        ec: &'a EngineEvaluationContext,
+        identity_key: Option<&'a String>,
+    ) -> Self {
+        Self {
+            flag_dependencies: Some(FlagDependencies {
+                identity_key,
+                segment_keys_by_feature_name: OnceCell::new(),
+                segment_matches: RefCell::new(HashMap::new()),
+                flag_paths: RefCell::new(HashMap::new()),
+                resolving: RefCell::new(Vec::new()),
+                resolved: RefCell::new(HashMap::new()),
+                cyclic: RefCell::new(HashSet::new()),
+                cycle_hits: Cell::new(0),
+            }),
+            ..Self::new(ec)
+        }
+    }
+
+    /// How many times a dependency cycle has been cut so far
+    pub(crate) fn cycle_hits(&self) -> usize {
+        self.flag_dependencies
+            .as_ref()
+            .map_or(0, |dependencies| dependencies.cycle_hits.get())
+    }
+
+    pub(crate) fn into_resolved_flags(self) -> ResolvedFlags<'a> {
+        self.flag_dependencies
+            .map_or_else(ResolvedFlags::default, |dependencies| ResolvedFlags {
+                flags: dependencies.resolved.into_inner(),
+                cyclic: dependencies.cyclic.into_inner(),
+            })
     }
 
     /// Determines if the evaluation context matches the segment rules
@@ -70,36 +145,233 @@ impl<'a> SegmentEvaluator<'a> {
         let json_path = parse_json_path(path).ok()?;
 
         // Query the JSON using the path
-        let result = js_path_process(&json_path, self.context_json()?).ok()?;
+        query_first_value(&json_path, self.context_json()?)
+    }
 
-        // Get the first match (if any)
-        let value = result.first()?.clone().val();
+    /// Gets a value from the result of the feature a `$.flags` JSONPath names, resolving it on first read
+    fn get_value_from_flags(
+        &self,
+        dependencies: &FlagDependencies<'a>,
+        path: &str,
+    ) -> Option<FlagsmithValue> {
+        let Some(flag_path) = self.get_flag_path(dependencies, path) else {
+            return self.get_value_from_jsonpath(path); // Reads no flag, as the context holds none
+        };
+        let (feature_name, _) = self.ec.features.get_key_value(&flag_path.feature_name)?;
+        let flag = self.read_flag(dependencies, feature_name)?;
+        let flags = serde_json::Map::from_iter([(feature_name.clone(), flag)]);
+        let flags_json = serde_json::Value::Object(serde_json::Map::from_iter([(
+            "flags".to_string(),
+            serde_json::Value::Object(flags),
+        )]));
+        query_first_value(&flag_path.json_path, &flags_json)
+    }
 
-        // Convert to FlagsmithValue based on the JSON type
-        match value {
-            serde_json::Value::String(s) => Some(FlagsmithValue {
-                value: s.clone(),
-                value_type: crate::types::FlagsmithValueType::String,
-            }),
-            serde_json::Value::Number(n) => {
-                if n.is_f64() {
-                    Some(FlagsmithValue {
-                        value: n.to_string(),
-                        value_type: crate::types::FlagsmithValueType::Float,
-                    })
-                } else {
-                    Some(FlagsmithValue {
-                        value: n.to_string(),
-                        value_type: crate::types::FlagsmithValueType::Integer,
-                    })
+    fn get_flag_path(
+        &self,
+        dependencies: &FlagDependencies<'a>,
+        path: &str,
+    ) -> Option<Rc<FlagPath>> {
+        if let Some(flag_path) = dependencies.flag_paths.borrow().get(path) {
+            return flag_path.clone();
+        }
+        let flag_path = parse_flag_path(path).map(Rc::new);
+        dependencies
+            .flag_paths
+            .borrow_mut()
+            .insert(path.to_string(), flag_path.clone());
+        flag_path
+    }
+
+    fn read_flag(
+        &self,
+        dependencies: &FlagDependencies<'a>,
+        feature_name: &'a str,
+    ) -> Option<serde_json::Value> {
+        if !dependencies.resolved.borrow().contains_key(feature_name) {
+            self.resolve_feature(dependencies, feature_name);
+        }
+        let resolved = dependencies.resolved.borrow();
+        serde_json::to_value(resolved.get(feature_name)?).ok()
+    }
+
+    /// Resolves a flag, unless it depends on itself, or is absent from the context
+    fn resolve_feature(&self, dependencies: &FlagDependencies<'a>, feature_name: &'a str) {
+        let cycle_start = dependencies
+            .resolving
+            .borrow()
+            .iter()
+            .position(|name| *name == feature_name);
+        if let Some(cycle_start) = cycle_start {
+            let resolving = dependencies.resolving.borrow();
+            dependencies
+                .cyclic
+                .borrow_mut()
+                .extend(&resolving[cycle_start..]);
+            dependencies
+                .cycle_hits
+                .set(dependencies.cycle_hits.get() + 1);
+            return;
+        }
+
+        let Some(feature_context) = self.ec.features.get(feature_name) else {
+            return;
+        };
+
+        dependencies.resolving.borrow_mut().push(feature_name);
+        let segment_override = self.get_segment_override(dependencies, feature_name);
+        dependencies.resolving.borrow_mut().pop();
+
+        if dependencies.cyclic.borrow().contains(feature_name) {
+            return; // Not a result conditions may match on
+        }
+
+        let flag_result = match segment_override {
+            Some(segment_override) => get_flag_result_from_feature_context(
+                segment_override.feature_context,
+                dependencies.identity_key,
+                format!("TARGETING_MATCH; segment={}", segment_override.segment_name),
+            ),
+            None => get_flag_result_from_feature_context(
+                feature_context,
+                dependencies.identity_key,
+                get_fallback_reason(
+                    self.get_segment_keys_by_feature_name(dependencies)
+                        .contains_key(feature_name),
+                ),
+            ),
+        };
+        dependencies
+            .resolved
+            .borrow_mut()
+            .insert(feature_name, flag_result);
+    }
+
+    fn get_segment_override(
+        &self,
+        dependencies: &FlagDependencies<'a>,
+        feature_name: &str,
+    ) -> Option<SegmentOverride<'a>> {
+        let mut segment_override: Option<SegmentOverride<'a>> = None;
+
+        let segment_keys = self
+            .get_segment_keys_by_feature_name(dependencies)
+            .get(feature_name)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        for &segment_key in segment_keys {
+            if !self.matches_segment(dependencies, segment_key) {
+                continue;
+            }
+            let segment_context = &self.ec.segments[segment_key];
+            for override_fc in &segment_context.overrides {
+                if override_fc.name == feature_name
+                    && wins_over(
+                        override_fc,
+                        segment_override.as_ref().map(|o| o.feature_context),
+                    )
+                {
+                    segment_override = Some(SegmentOverride {
+                        feature_context: override_fc,
+                        segment_name: &segment_context.name,
+                    });
                 }
             }
-            serde_json::Value::Bool(b) => Some(FlagsmithValue {
-                value: b.to_string(),
-                value_type: crate::types::FlagsmithValueType::Bool,
-            }),
-            _ => None,
         }
+
+        segment_override
+    }
+
+    fn matches_segment(&self, dependencies: &FlagDependencies<'a>, segment_key: &'a str) -> bool {
+        if let Some(&matches) = dependencies.segment_matches.borrow().get(segment_key) {
+            return matches;
+        }
+
+        let cycle_hits = dependencies.cycle_hits.get();
+        let matches = self.is_context_in_segment(&self.ec.segments[segment_key]);
+        if dependencies.cycle_hits.get() != cycle_hits {
+            return false; // The verdict rests on a flag left unresolved by a cycle
+        }
+
+        dependencies
+            .segment_matches
+            .borrow_mut()
+            .insert(segment_key, matches);
+        matches
+    }
+
+    fn get_segment_keys_by_feature_name<'d>(
+        &self,
+        dependencies: &'d FlagDependencies<'a>,
+    ) -> &'d HashMap<&'a str, Vec<&'a str>> {
+        dependencies.segment_keys_by_feature_name.get_or_init(|| {
+            let mut segment_keys_by_feature_name: HashMap<&str, Vec<&str>> = HashMap::new();
+            for (segment_key, segment_context) in &self.ec.segments {
+                for override_fc in &segment_context.overrides {
+                    segment_keys_by_feature_name
+                        .entry(override_fc.name.as_str())
+                        .or_default()
+                        .push(segment_key);
+                }
+            }
+            segment_keys_by_feature_name
+        })
+    }
+}
+
+/// Parses a JSONPath reading the result of a feature, i.e. one selecting a single feature by name right after `$.flags`
+fn parse_flag_path(path: &str) -> Option<FlagPath> {
+    if !path.starts_with("$.flags") {
+        return None; // e.g. `$['flags']`, which may name a trait
+    }
+    let json_path = parse_json_path(path).ok()?;
+    let [Segment::Selector(Selector::Name(flags)), Segment::Selector(Selector::Name(feature_name)), ..] =
+        json_path.segments.as_slice()
+    else {
+        return None;
+    };
+    if flags != "flags" {
+        return None;
+    }
+    Some(FlagPath {
+        feature_name: feature_name.clone(),
+        json_path,
+    })
+}
+
+/// Gets the first value a JSONPath selects, if it is a scalar
+fn query_first_value(json_path: &JpQuery, json: &serde_json::Value) -> Option<FlagsmithValue> {
+    // Get the first match (if any)
+    let value = js_path_process(json_path, json)
+        .ok()?
+        .into_iter()
+        .next()?
+        .val();
+
+    // Convert to FlagsmithValue based on the JSON type
+    match value {
+        serde_json::Value::String(s) => Some(FlagsmithValue {
+            value: s.clone(),
+            value_type: crate::types::FlagsmithValueType::String,
+        }),
+        serde_json::Value::Number(n) => {
+            if n.is_f64() {
+                Some(FlagsmithValue {
+                    value: n.to_string(),
+                    value_type: crate::types::FlagsmithValueType::Float,
+                })
+            } else {
+                Some(FlagsmithValue {
+                    value: n.to_string(),
+                    value_type: crate::types::FlagsmithValueType::Integer,
+                })
+            }
+        }
+        serde_json::Value::Bool(b) => Some(FlagsmithValue {
+            value: b.to_string(),
+            value_type: crate::types::FlagsmithValueType::Bool,
+        }),
+        _ => None,
     }
 }
 
@@ -219,7 +491,13 @@ fn context_matches_condition(
 fn get_context_value(evaluator: &SegmentEvaluator, property: &str) -> Option<FlagsmithValue> {
     // If property starts with $., try to parse it as a JSONPath expression
     if property.starts_with("$.") {
-        if let Some(value) = evaluator.get_value_from_jsonpath(property) {
+        let value = match &evaluator.flag_dependencies {
+            Some(dependencies) if property.starts_with("$.flags") => {
+                evaluator.get_value_from_flags(dependencies, property)
+            }
+            _ => evaluator.get_value_from_jsonpath(property),
+        };
+        if let Some(value) = value {
             return Some(value);
         }
         // If JSONPath parsing fails, fall through to treat it as a trait name
