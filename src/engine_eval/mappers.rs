@@ -342,3 +342,36 @@ pub fn add_identity_to_context(
     new_context.identity = Some(identity);
     new_context
 }
+
+/// Gets the context to evaluate environment flags against
+///
+/// # Arguments
+/// * `context` - The context to evaluate environment flags for
+///
+/// # Returns
+/// A new context without identity, keeping only segments whose every condition reads the environment or other flags
+pub fn remove_identity_from_context(context: &EngineEvaluationContext) -> EngineEvaluationContext {
+    EngineEvaluationContext {
+        environment: context.environment.clone(),
+        features: context.features.clone(),
+        segments: context
+            .segments
+            .iter()
+            .filter(|(_, segment)| is_identity_free(&segment.rules))
+            .map(|(key, segment)| (key.clone(), segment.clone()))
+            .collect(),
+        identity: None,
+    }
+}
+
+fn is_identity_free(rules: &[SegmentRule]) -> bool {
+    const IDENTITY_FREE_PROPERTY_PREFIXES: [&str; 4] =
+        ["$.environment.", "$.environment[", "$.flags.", "$.flags["];
+    rules.iter().all(|rule| {
+        rule.conditions.iter().all(|condition| {
+            IDENTITY_FREE_PROPERTY_PREFIXES
+                .iter()
+                .any(|prefix| condition.property.starts_with(prefix))
+        }) && is_identity_free(&rule.rules)
+    })
+}
