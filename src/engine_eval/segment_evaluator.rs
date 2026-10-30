@@ -112,13 +112,18 @@ pub fn is_context_in_segment(ec: &EngineEvaluationContext, segment: &SegmentCont
 
 /// Checks if the context matches a segment rule
 fn context_matches_segment_rule(
-    ec: &SegmentEvaluator,
+    evaluator: &SegmentEvaluator,
     rule: &SegmentRule,
     segment_key: &str,
 ) -> bool {
     // Check conditions if present
     if !rule.conditions.is_empty()
-        && !matches_conditions_by_rule_type(ec, &rule.conditions, &rule.rule_type, segment_key)
+        && !matches_conditions_by_rule_type(
+            evaluator,
+            &rule.conditions,
+            &rule.rule_type,
+            segment_key,
+        )
     {
         return false;
     }
@@ -128,18 +133,18 @@ fn context_matches_segment_rule(
         return true;
     }
 
-    matches_sub_rules_by_rule_type(ec, &rule.rules, &rule.rule_type, segment_key)
+    matches_sub_rules_by_rule_type(evaluator, &rule.rules, &rule.rule_type, segment_key)
 }
 
 fn matches_sub_rules_by_rule_type(
-    ec: &SegmentEvaluator,
+    evaluator: &SegmentEvaluator,
     sub_rules: &[SegmentRule],
     rule_type: &SegmentRuleType,
     segment_key: &str,
 ) -> bool {
     let mut results = sub_rules
         .iter()
-        .map(|sr| context_matches_segment_rule(ec, sr, segment_key));
+        .map(|sr| context_matches_segment_rule(evaluator, sr, segment_key));
     match rule_type {
         SegmentRuleType::All => results.all(|r| r),
         SegmentRuleType::Any => results.any(|r| r),
@@ -149,13 +154,13 @@ fn matches_sub_rules_by_rule_type(
 
 /// Checks if conditions match according to the rule type
 fn matches_conditions_by_rule_type(
-    ec: &SegmentEvaluator,
+    evaluator: &SegmentEvaluator,
     conditions: &[Condition],
     rule_type: &SegmentRuleType,
     segment_key: &str,
 ) -> bool {
     for condition in conditions {
-        let condition_matches = context_matches_condition(ec, condition, segment_key);
+        let condition_matches = context_matches_condition(evaluator, condition, segment_key);
 
         match rule_type {
             SegmentRuleType::All => {
@@ -182,19 +187,19 @@ fn matches_conditions_by_rule_type(
 
 /// Checks if the context matches a specific condition
 fn context_matches_condition(
-    ec: &SegmentEvaluator,
+    evaluator: &SegmentEvaluator,
     condition: &Condition,
     segment_key: &str,
 ) -> bool {
     let context_value = if !condition.property.is_empty() {
-        get_context_value(ec, &condition.property)
+        get_context_value(evaluator, &condition.property)
     } else {
         None
     };
 
     match condition.operator {
         ConditionOperator::PercentageSplit => {
-            match_percentage_split(ec.ec, condition, segment_key, context_value.as_ref())
+            match_percentage_split(evaluator.ec, condition, segment_key, context_value.as_ref())
         }
         ConditionOperator::In => match_in_operator(condition, context_value.as_ref()),
         ConditionOperator::IsNotSet => context_value.is_none(),
@@ -210,17 +215,17 @@ fn context_matches_condition(
 }
 
 /// Gets a value from the context by property name or JSONPath
-fn get_context_value(ec: &SegmentEvaluator, property: &str) -> Option<FlagsmithValue> {
+fn get_context_value(evaluator: &SegmentEvaluator, property: &str) -> Option<FlagsmithValue> {
     // If property starts with $., try to parse it as a JSONPath expression
     if property.starts_with("$.") {
-        if let Some(value) = ec.get_value_from_jsonpath(property) {
+        if let Some(value) = evaluator.get_value_from_jsonpath(property) {
             return Some(value);
         }
         // If JSONPath parsing fails, fall through to treat it as a trait name
     }
 
     // Check traits by property name
-    if let Some(ref identity) = ec.ec.identity {
+    if let Some(ref identity) = evaluator.ec.identity {
         if let Some(trait_value) = identity.traits.get(property) {
             return Some(trait_value.clone());
         }
