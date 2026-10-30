@@ -1,4 +1,5 @@
 use crate::types::FlagsmithValue;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -29,6 +30,9 @@ fn default_feature_type() -> String {
 /// Represents a multivariate value for a feature flag.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeatureValue {
+    /// The key identifying this variant in flag results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
     /// The value of the feature.
     pub value: FlagsmithValue,
     /// The weight of the feature value variant, as a percentage number (i.e. 100.0).
@@ -257,9 +261,9 @@ pub struct EngineEvaluationContext {
     #[serde(default)]
     pub features: HashMap<String, FeatureContext>,
 
-    /// Segment contexts indexed by segment key.
+    /// Segment contexts indexed by segment key, in evaluation order.
     #[serde(default)]
-    pub segments: HashMap<String, SegmentContext>,
+    pub segments: IndexMap<String, SegmentContext>,
 
     /// Optional identity context for evaluation.
     #[serde(skip_serializing_if = "Option::is_none")]

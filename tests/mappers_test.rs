@@ -1,8 +1,24 @@
+#![allow(non_snake_case)]
+
 use flagsmith_flag_engine::engine_eval::{
     context::{ConditionOperator, ConditionValue, SegmentRuleType, SegmentSource},
-    environment_to_context,
+    environment_to_context, remove_identity_from_context, EngineEvaluationContext,
 };
 use flagsmith_flag_engine::environments::Environment;
+use rstest::*;
+use serde_json::json;
+
+#[fixture]
+fn identity_context(#[default(json!([]))] rules: serde_json::Value) -> EngineEvaluationContext {
+    serde_json::from_value(json!({
+        "environment": {"key": "key", "name": "Production"},
+        "identity": {"identifier": "user", "traits": {"plan": "pro"}},
+        "segments": {
+            "targeting": {"key": "targeting", "name": "targeting", "rules": rules}
+        }
+    }))
+    .unwrap()
+}
 
 fn get_environment_fixture() -> &'static str {
     r#"{
@@ -308,4 +324,51 @@ fn test_environment_to_context_produces_evaluation_context() {
 
     assert_eq!(mv_feature_without_ids.variants[2].value.value, "option_z");
     assert_eq!(mv_feature_without_ids.variants[2].weight, 25.0);
+}
+
+#[rstest]
+#[case("$.environment.name")]
+#[case("$.environment['name']")]
+#[case("$.flags.banner.enabled")]
+#[case("$.flags[\"banner\"].enabled")]
+fn test_remove_identity_from_context__segment_reading_environment_or_flags__keeps_segment(
+    #[case] property: &str,
+) {
+    // Given
+    let context = identity_context(json!([{
+        "type": "ALL",
+        "conditions": [{"operator": "IS_SET", "property": property, "value": null}]
+    }]));
+
+    // When
+    let environment_context = remove_identity_from_context(&context);
+
+    // Then
+    assert!(environment_context.identity.is_none());
+    assert!(environment_context.segments.contains_key("targeting"));
+}
+
+#[rstest]
+#[case(json!([{"type": "ALL", "conditions": [{"operator": "IS_NOT_SET", "property": "plan", "value": null}]}]))]
+#[case(json!([{"type": "ALL", "conditions": [{"operator": "EQUAL", "property": "$.identity.identifier", "value": "user"}]}]))]
+#[case(json!([{"type": "ALL", "conditions": [{"operator": "PERCENTAGE_SPLIT", "property": "", "value": "100"}]}]))]
+#[case(json!([{"type": "ALL", "conditions": [
+    {"operator": "EQUAL", "property": "$.environment.name", "value": "Production"},
+    {"operator": "EQUAL", "property": "plan", "value": "pro"}
+]}]))]
+#[case(json!([{"type": "ALL", "rules": [
+    {"type": "NONE", "conditions": [{"operator": "EQUAL", "property": "plan", "value": "free"}]}
+]}]))]
+fn test_remove_identity_from_context__segment_needing_identity__drops_segment(
+    #[case] rules: serde_json::Value,
+) {
+    // Given
+    let context = identity_context(rules);
+
+    // When
+    let environment_context = remove_identity_from_context(&context);
+
+    // Then
+    assert!(environment_context.identity.is_none());
+    assert!(environment_context.segments.is_empty());
 }

@@ -7,6 +7,7 @@ use crate::environments::Environment;
 use crate::features::{FeatureState, MultivariateFeatureStateValue};
 use crate::identities::{Identity, Trait};
 use crate::segments::{Segment, SegmentRule as OldSegmentRule};
+use indexmap::IndexMap;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
@@ -24,7 +25,7 @@ pub fn environment_to_context(environment: Environment) -> EngineEvaluationConte
             name: environment.name.clone(),
         },
         features: HashMap::new(),
-        segments: HashMap::new(),
+        segments: IndexMap::new(),
         identity: None,
     };
 
@@ -91,6 +92,7 @@ fn map_multivariate_values_to_variants(
     mv_values
         .iter()
         .map(|mv| FeatureValue {
+            key: None,
             value: mv.multivariate_feature_option.value.clone(),
             weight: mv.percentage_allocation as f64,
             priority: None,
@@ -339,4 +341,37 @@ pub fn add_identity_to_context(
 
     new_context.identity = Some(identity);
     new_context
+}
+
+/// Gets the context to evaluate environment flags against
+///
+/// # Arguments
+/// * `context` - The context to evaluate environment flags for
+///
+/// # Returns
+/// A new context without identity, keeping only segments whose every condition reads the environment or other flags
+pub fn remove_identity_from_context(context: &EngineEvaluationContext) -> EngineEvaluationContext {
+    EngineEvaluationContext {
+        environment: context.environment.clone(),
+        features: context.features.clone(),
+        segments: context
+            .segments
+            .iter()
+            .filter(|(_, segment)| is_identity_free(&segment.rules))
+            .map(|(key, segment)| (key.clone(), segment.clone()))
+            .collect(),
+        identity: None,
+    }
+}
+
+fn is_identity_free(rules: &[SegmentRule]) -> bool {
+    const IDENTITY_FREE_PROPERTY_PREFIXES: [&str; 4] =
+        ["$.environment.", "$.environment[", "$.flags.", "$.flags["];
+    rules.iter().all(|rule| {
+        rule.conditions.iter().all(|condition| {
+            IDENTITY_FREE_PROPERTY_PREFIXES
+                .iter()
+                .any(|prefix| condition.property.starts_with(prefix))
+        }) && is_identity_free(&rule.rules)
+    })
 }
