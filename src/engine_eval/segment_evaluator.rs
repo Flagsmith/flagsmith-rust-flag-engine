@@ -4,9 +4,10 @@ use super::context::{
 };
 use crate::types::FlagsmithValue;
 use crate::utils::hashing;
+use jsonpath_rust::parser::parse_json_path;
+use jsonpath_rust::query::js_path_process;
 use regex::Regex;
 use semver::Version;
-use serde_json_path::JsonPath;
 use std::cell::{OnceCell, RefCell};
 use std::collections::HashMap;
 
@@ -66,13 +67,13 @@ impl<'a> SegmentEvaluator<'a> {
 
     fn resolve_jsonpath(&self, path: &str) -> Option<FlagsmithValue> {
         // Parse the JSONPath expression
-        let json_path = JsonPath::parse(path).ok()?;
+        let json_path = parse_json_path(path).ok()?;
 
         // Query the JSON using the path
-        let result = json_path.query(self.context_json()?);
+        let result = js_path_process(&json_path, self.context_json()?).ok()?;
 
         // Get the first match (if any)
-        let value = *result.all().first()?;
+        let value = result.first()?.clone().val();
 
         // Convert to FlagsmithValue based on the JSON type
         match value {
