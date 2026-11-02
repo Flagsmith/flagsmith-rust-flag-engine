@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.6.1...v0.7.0) (2026-11-02)
+
+
+### Features
+
+* Evaluate flags that depend on other flags ([#44](https://github.com/Flagsmith/flagsmith-rust-flag-engine/issues/44)) ([e8b5eeb](https://github.com/Flagsmith/flagsmith-rust-flag-engine/commit/e8b5eeb4393e0a84f9ccbd81b443944157e4ca1b))
+
 ## [0.6.1](https://github.com/Flagsmith/flagsmith-rust-flag-engine/compare/v0.6.0...v0.6.1) (2026-10-30)
 
 
