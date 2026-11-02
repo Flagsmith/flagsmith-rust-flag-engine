@@ -94,6 +94,7 @@ fn get_environment_fixture() -> &'static str {
           "id": 100,
           "multivariate_feature_option": {
             "id": 10,
+            "key": "a",
             "value": "variant_a"
           },
           "mv_fs_value_uuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -300,9 +301,11 @@ fn test_environment_to_context_produces_evaluation_context() {
     // Verify variants
     assert_eq!(mv_feature_with_ids.variants[0].value.value, "variant_a");
     assert_eq!(mv_feature_with_ids.variants[0].weight, 30.0);
+    assert_eq!(mv_feature_with_ids.variants[0].key.as_deref(), Some("a"));
 
     assert_eq!(mv_feature_with_ids.variants[1].value.value, "variant_b");
     assert_eq!(mv_feature_with_ids.variants[1].weight, 70.0);
+    assert_eq!(mv_feature_with_ids.variants[1].key, None);
 
     // Verify multivariate feature without IDs
     assert!(context.features.contains_key("mv_feature_without_ids"));

@@ -16,6 +16,8 @@ pub struct Feature {
 pub struct MultivariateFeatureOption {
     pub value: FlagsmithValue,
     pub id: Option<u32>,
+    #[serde(default)]
+    pub key: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
