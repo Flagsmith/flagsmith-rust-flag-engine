@@ -2,9 +2,15 @@ use flagsmith_flag_engine::engine::get_evaluation_result;
 use flagsmith_flag_engine::engine_eval::{EngineEvaluationContext, EvaluationResult};
 use json_comments::StripComments;
 use rstest::*;
-use serde_json;
+use serde::Deserialize;
 use std::fs;
 use std::io::Read;
+
+#[derive(Deserialize)]
+struct TestCase {
+    context: EngineEvaluationContext,
+    result: EvaluationResult,
+}
 
 #[rstest]
 fn test_engine_evaluation() {
@@ -42,25 +48,15 @@ fn test_engine_evaluation() {
             test_data
         };
 
-        // Parse the JSON
-        let test_json: serde_json::Value = serde_json::from_str(&json_string)
-            .expect(&format!("Failed to parse JSON for: {}", test_name));
-
-        // Deserialize the context
-        let context: EngineEvaluationContext = serde_json::from_value(test_json["context"].clone())
-            .unwrap_or_else(|e| panic!("Failed to deserialize context for {}: {:?}", test_name, e));
+        // Deserialize the context and the expected result, keeping segments in context order
+        let TestCase {
+            context,
+            result: expected,
+        } = serde_json::from_str(&json_string)
+            .unwrap_or_else(|e| panic!("Failed to deserialize {}: {:?}", test_name, e));
 
         // Get the evaluation result
         let result = get_evaluation_result(&context);
-
-        // Deserialize the expected result
-        let expected: EvaluationResult = serde_json::from_value(test_json["result"].clone())
-            .unwrap_or_else(|e| {
-                panic!(
-                    "Failed to deserialize expected result for {}: {:?}",
-                    test_name, e
-                )
-            });
 
         // Compare results - panic immediately on mismatch
         assert_eq!(
