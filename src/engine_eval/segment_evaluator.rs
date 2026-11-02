@@ -240,7 +240,6 @@ impl<'a> SegmentEvaluator<'a> {
         dependencies.resolved.borrow().get(feature_name).map(read)
     }
 
-    /// Resolves a flag, unless it depends on itself, or is absent from the context
     fn resolve_feature(&self, dependencies: &FlagDependencies<'a>, feature_name: &'a str) {
         let cycle_start = dependencies
             .resolving
@@ -253,6 +252,8 @@ impl<'a> SegmentEvaluator<'a> {
                 .cyclic
                 .borrow_mut()
                 .extend(&resolving[cycle_start..]);
+        }
+        if cycle_start.is_some() || dependencies.cyclic.borrow().contains(feature_name) {
             dependencies
                 .cycle_hits
                 .set(dependencies.cycle_hits.get() + 1);
