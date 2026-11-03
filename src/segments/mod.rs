@@ -70,7 +70,7 @@ impl SegmentCondition {
             constants::NOT_CONTAINS => !trait_value.contains(segment_value),
             constants::REGEX => {
                 let re = Regex::new(segment_value).unwrap();
-                re.is_match(&trait_value)
+                re.find(trait_value).is_some_and(|m| m.start() == 0)
             }
             _ => false,
         }
@@ -328,6 +328,34 @@ mod tests {
         true
     )]
     #[case(constants::REGEX, "foo", FlagsmithValueType::String, r"[a-z]+", true)]
+    #[case(
+        constants::REGEX,
+        "production",
+        FlagsmithValueType::String,
+        "prod",
+        true
+    )]
+    #[case(
+        constants::REGEX,
+        "nonproduction",
+        FlagsmithValueType::String,
+        "prod",
+        false
+    )]
+    #[case(
+        constants::REGEX,
+        "development",
+        FlagsmithValueType::String,
+        "prod|dev",
+        true
+    )]
+    #[case(
+        constants::REGEX,
+        "nondev",
+        FlagsmithValueType::String,
+        "prod|dev",
+        false
+    )]
     #[case(constants::IN, "foo", FlagsmithValueType::String, "", false)]
     #[case(constants::IN, "foo", FlagsmithValueType::String, "foo,bar", true)]
     #[case(constants::IN, "bar", FlagsmithValueType::String, "foo,bar", true)]
@@ -347,6 +375,7 @@ mod tests {
         #[case] value: &str,
         #[case] result: bool,
     ) {
+        // Given
         let trait_value = FlagsmithValue {
             value: trait_value.to_string(),
             value_type: trait_value_type,
@@ -356,7 +385,12 @@ mod tests {
             value: Some(value.to_string()),
             property: Some("foo".to_string()),
         };
-        assert_eq!(segment_condition.matches_trait_value(&trait_value), result)
+
+        // When
+        let matches = segment_condition.matches_trait_value(&trait_value);
+
+        // Then
+        assert_eq!(matches, result)
     }
 
     #[rstest]
