@@ -753,12 +753,12 @@ fn dispatch_operator<T: PartialOrd + PartialEq>(
     }
 }
 
-/// Evaluates regex matching
+/// Reports whether the regex matches at the start of the trait value, without requiring a full match
 fn evaluate_regex(trait_value: &str, condition_value: &str) -> bool {
-    if let Ok(re) = Regex::new(condition_value) {
-        return re.is_match(trait_value);
+    match Regex::new(condition_value) {
+        Ok(re) => re.find(trait_value).is_some_and(|m| m.start() == 0),
+        Err(_) => false,
     }
-    false
 }
 
 /// Evaluates modulo operation
@@ -900,6 +900,51 @@ mod tests {
         // Then
         assert!(matches);
         assert!(evaluator.context_json.get().is_none());
+    }
+
+    #[rstest::rstest]
+    #[case("production", "prod", true)]
+    #[case("nonproduction", "prod", false)]
+    #[case("development", "prod|dev", true)]
+    #[case("nondev", "prod|dev", false)]
+    #[case("jane@example.com", r"@example\.com$", false)]
+    #[case("jane@example.com", r"^[^@]+@example\.com$", true)]
+    #[case("prod-api", r"^(prod|uat|dev)-.+$", true)]
+    #[case("Production", "prod", false)]
+    #[case("Production", "[Pp]rod", true)]
+    #[case("a(b", "a)(b", false)]
+    fn test_regex_condition_matches_from_start_of_trait_value(
+        #[case] trait_value: &str,
+        #[case] pattern: &str,
+        #[case] expected: bool,
+    ) {
+        // Given
+        let ec: EngineEvaluationContext = serde_json::from_value(serde_json::json!({
+            "environment": {"key": "env-key", "name": "Environment"},
+            "identity": {"identifier": "user-1", "traits": {"stage": trait_value}},
+        }))
+        .unwrap();
+        let segment = SegmentContext {
+            key: String::new(),
+            name: "stage".to_string(),
+            metadata: Default::default(),
+            overrides: vec![],
+            rules: vec![SegmentRule {
+                rule_type: SegmentRuleType::All,
+                conditions: vec![Condition {
+                    operator: ConditionOperator::Regex,
+                    property: "stage".to_string(),
+                    value: super::super::context::ConditionValue::Single(pattern.to_string()),
+                }],
+                rules: vec![],
+            }],
+        };
+
+        // When
+        let matches = SegmentEvaluator::new(&ec).is_context_in_segment(&segment);
+
+        // Then
+        assert_eq!(matches, expected);
     }
 
     #[test]
